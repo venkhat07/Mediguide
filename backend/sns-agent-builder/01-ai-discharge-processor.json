@@ -1,0 +1,129 @@
+{
+  "nodes": [
+    {
+      "id": "webhook-1783398986589",
+      "type": "webhook",
+      "position": {
+        "x": 100,
+        "y": 200
+      },
+      "data": {
+        "label": "Webhook Trigger",
+        "toolId": "webhook",
+        "toolData": {
+          "id": "webhook",
+          "displayName": "Webhook Trigger",
+          "category": "Input /  Output",
+          "icon": "webhook",
+          "description": "Trigger workflow via webhook for MedGuideAI discharge processing",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "default": "discharge-summary/process"
+              },
+              "method": {
+                "type": "string",
+                "default": "POST"
+              },
+              "responseMode": {
+                "type": "string",
+                "default": "respondWithNode"
+              }
+            }
+          }
+        },
+        "isTrigger": true,
+        "isPrimaryTrigger": true,
+        "inputs": {
+          "path": "discharge-summary/process",
+          "method": "POST",
+          "responseMode": "respondWithNode",
+          "authentication": "none"
+        }
+      },
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": "gemini-1783408319707",
+      "type": "action",
+      "position": {
+        "x": 420,
+        "y": 200
+      },
+      "data": {
+        "label": "Google Gemini (Medical AI)",
+        "toolId": "gemini",
+        "toolData": {
+          "id": "gemini",
+          "displayName": "Google Gemini",
+          "type": "chat model",
+          "category": "AI / LLM",
+          "provider": "LLM Models",
+          "operation": "Message a Model",
+          "icon": "api",
+          "description": "Extract diagnoses, medications, dosages, diet, and translate to patient language at a 6th-grade reading level"
+        },
+        "isTrigger": false,
+        "isPrimaryTrigger": false,
+        "inputs": {
+          "resource": "Text",
+          "operation": "Message a Model",
+          "model": "gemini-2.5-flash",
+          "prompt": "You are a compassionate clinical discharge educator and expert medical translator.\n\nPATIENT NAME: {{ $('Webhook Trigger').item.json.body.patientName || 'Patient' }}\nTARGET PATIENT LANGUAGE: {{ $('Webhook Trigger').item.json.body.language || $('Webhook Trigger').item.json.body.targetLanguage || 'Tamil' }}\n\nCLINICAL DISCHARGE SUMMARY:\n{{ $('Webhook Trigger').item.json.body.clinicalNotes || $('Webhook Trigger').item.json.body.fileContent || 'Discharge Care Plan' }}\n\nTASK:\n1. Extract all clinical facts into structured categories.\n2. Translate and write ALL patient-facing advice, explanations, warnings, and instructions STRICTLY in the TARGET PATIENT LANGUAGE (e.g., if Tamil, use Tamil script; if Hindi, use Devanagari; if Telugu, use Telugu script).\n3. Keep medication names in English (e.g. 'Metformin 500 mg', 'Amlodipine 5 mg'), but write each medication's 'explanation' in the TARGET PATIENT LANGUAGE.\n4. Write 'patientExplanation' as a warm, reassuring summary for the patient in the TARGET PATIENT LANGUAGE at a 6th-grade reading level.\n5. Write 'diet', 'restrictions', 'followUp', and 'warningSigns' arrays in the TARGET PATIENT LANGUAGE.\n\nRespond ONLY with a valid JSON object matching this schema:\n{\n  \"diagnosis\": [\"Condition 1\", \"Condition 2\"],\n  \"medications\": [\n    {\n      \"name\": \"Medication Name\",\n      \"dosage\": \"500 mg\",\n      \"frequency\": \"Twice daily\",\n      \"duration\": \"30 days\",\n      \"explanation\": \"Simple instruction in TARGET PATIENT LANGUAGE\"\n    }\n  ],\n  \"diet\": [\"Diet advice in TARGET PATIENT LANGUAGE\"],\n  \"restrictions\": [\"Activity restriction in TARGET PATIENT LANGUAGE\"],\n  \"followUp\": [\"Follow-up instruction in TARGET PATIENT LANGUAGE\"],\n  \"warningSigns\": [\"Warning sign in TARGET PATIENT LANGUAGE\"],\n  \"patientExplanation\": \"Reassuring paragraph in TARGET PATIENT LANGUAGE\"\n}",
+          "options": {
+            "temperature": 0.2
+          }
+        }
+      },
+      "width": 220,
+      "height": 94
+    },
+    {
+      "id": "respondToWebhook-1783398852956",
+      "type": "action",
+      "position": {
+        "x": 740,
+        "y": 200
+      },
+      "data": {
+        "label": "Webhook Response",
+        "toolId": "respondToWebhook",
+        "toolData": {
+          "id": "respondToWebhook",
+          "displayName": "Webhook Response",
+          "category": "Input /  Output",
+          "icon": "reply",
+          "description": "Send JSON response back to MedGuideAI frontend"
+        },
+        "isTrigger": false,
+        "isPrimaryTrigger": false,
+        "inputs": {
+          "respondWith": "JSON",
+          "responseCode": 200,
+          "responseBody": "={{ $json.text || $json.content || $json }}"
+        }
+      },
+      "width": 220,
+      "height": 94
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-webhook-gemini",
+      "source": "webhook-1783398986589",
+      "target": "gemini-1783408319707",
+      "type": "custom",
+      "data": {}
+    },
+    {
+      "id": "e-gemini-respond",
+      "source": "gemini-1783408319707",
+      "target": "respondToWebhook-1783398852956",
+      "type": "custom",
+      "data": {}
+    }
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "nodes": [
+    {
+      "id": "webhook-qna-trigger",
+      "type": "webhook",
+      "position": {
+        "x": 100,
+        "y": 200
+      },
+      "data": {
+        "label": "Webhook Trigger",
+        "toolId": "webhook",
+        "toolData": {
+          "id": "webhook",
+          "displayName": "Webhook Trigger",
+          "category": "Input /  Output",
+          "icon": "webhook",
+          "description": "Trigger patient Q&A assistant via webhook"
+        },
+        "isTrigger": true,
+        "isPrimaryTrigger": true,
+        "inputs": {
+          "path": "qna/ask",
+          "method": "POST",
+          "responseMode": "respondWithNode",
+          "authentication": "none"
+        }
+      },
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": "gemini-qna-model",
+      "type": "action",
+      "position": {
+        "x": 420,
+        "y": 200
+      },
+      "data": {
+        "label": "Google Gemini (Clinical Q&A)",
+        "toolId": "gemini",
+        "toolData": {
+          "id": "gemini",
+          "displayName": "Google Gemini",
+          "type": "chat model",
+          "category": "AI / LLM",
+          "provider": "LLM Models",
+          "operation": "Message a Model",
+          "icon": "api",
+          "description": "Answer patient recovery questions grounded in their discharge instructions with clinical safety guardrails"
+        },
+        "isTrigger": false,
+        "isPrimaryTrigger": false,
+        "inputs": {
+          "resource": "Text",
+          "operation": "Message a Model",
+          "model": "gemini-2.5-flash",
+          "prompt": "You are MedGuideAI, a post-discharge patient care assistant. The patient is asking: \"{{ $json.body.question }}\". Provide a safe, clear, reassuring answer (2-3 sentences max). If they report red flags (severe chest pain, high fever, bleeding, shortness of breath), tell them to seek emergency care immediately.",
+          "options": {
+            "temperature": 0.3
+          }
+        }
+      },
+      "width": 220,
+      "height": 94
+    },
+    {
+      "id": "respondToWebhook-qna",
+      "type": "action",
+      "position": {
+        "x": 740,
+        "y": 200
+      },
+      "data": {
+        "label": "Webhook Response",
+        "toolId": "respondToWebhook",
+        "toolData": {
+          "id": "respondToWebhook",
+          "displayName": "Webhook Response",
+          "category": "Input /  Output",
+          "icon": "reply",
+          "description": "Deliver AI response message to frontend chat"
+        },
+        "isTrigger": false,
+        "isPrimaryTrigger": false,
+        "inputs": {
+          "respondWith": "JSON",
+          "responseCode": 200,
+          "responseBody": "={\n  \"from\": \"ai\",\n  \"text\": \"{{ $json.textInput || $json.text || 'Take medications as directed in your discharge plan.' }}\",\n  \"time\": \"{{ new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}\",\n  \"status\": \"Delivered\"\n}"
+        }
+      },
+      "width": 220,
+      "height": 94
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-qna-webhook-gemini",
+      "source": "webhook-qna-trigger",
+      "target": "gemini-qna-model",
+      "type": "custom",
+      "data": {}
+    },
+    {
+      "id": "e-gemini-respond-qna",
+      "source": "gemini-qna-model",
+      "target": "respondToWebhook-qna",
+      "type": "custom",
+      "data": {}
+    }
+  ]
+}

@@ -1,0 +1,154 @@
+{
+  "nodes": [
+    {
+      "id": "webhook-whatsapp-trigger",
+      "type": "webhook",
+      "position": {
+        "x": 100,
+        "y": 200
+      },
+      "data": {
+        "label": "Webhook Trigger",
+        "toolId": "webhook",
+        "toolData": {
+          "id": "webhook",
+          "displayName": "Webhook Trigger",
+          "category": "Input /  Output",
+          "icon": "webhook",
+          "description": "Trigger WhatsApp notification dispatch"
+        },
+        "isTrigger": true,
+        "isPrimaryTrigger": true,
+        "inputs": {
+          "path": "communications/whatsapp/send",
+          "method": "POST",
+          "responseMode": "respondWithNode",
+          "authentication": "none"
+        }
+      },
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": "gemini-text-care-chat",
+      "type": "action",
+      "position": {
+        "x": 380,
+        "y": 200
+      },
+      "data": {
+        "label": "Chat Node 1 (Text Care Plan)",
+        "toolId": "gemini",
+        "toolData": {
+          "id": "gemini",
+          "displayName": "Google Gemini",
+          "type": "chat model",
+          "category": "AI / LLM",
+          "provider": "LLM Models",
+          "operation": "Message a Model",
+          "icon": "api",
+          "description": "Generates formatted WhatsApp text care guide in patient native language"
+        },
+        "isTrigger": false,
+        "isPrimaryTrigger": false,
+        "inputs": {
+          "resource": "Text",
+          "operation": "Message a Model",
+          "model": "gemini-1.5-flash",
+          "prompt": "You are MedGuideAI Hospital Care Assistant.\nPatient Name: {{ $('Webhook Trigger').item.json.body.patientName || 'Patient' }}\nLanguage: {{ $('Webhook Trigger').item.json.body.language || 'Tamil' }}\nCare Advice: {{ $('Webhook Trigger').item.json.body.patientExplanation || 'Recovering after treatment' }}\n\nTASK:\nCreate a formatted WhatsApp text care plan in {{ $('Webhook Trigger').item.json.body.language || 'Tamil' }}.\nInclude:\n1. Hospital greeting: St. Jude Memorial Hospital\n2. Prescriptions & dosage timing\n3. Dietary recovery advice\n4. Emergency red-flag warnings\nKeep it concise and formatted with bullet points and emojis.",
+          "options": {
+            "temperature": 0.3
+          }
+        }
+      },
+      "width": 220,
+      "height": 94
+    },
+    {
+      "id": "gemini-voice-script-chat",
+      "type": "action",
+      "position": {
+        "x": 660,
+        "y": 200
+      },
+      "data": {
+        "label": "Chat Node 2 (Voice Note Script)",
+        "toolId": "gemini",
+        "toolData": {
+          "id": "gemini",
+          "displayName": "Google Gemini",
+          "type": "chat model",
+          "category": "AI / LLM",
+          "provider": "LLM Models",
+          "operation": "Message a Model",
+          "icon": "api",
+          "description": "Generates conversational audio narration script for spoken voice note"
+        },
+        "isTrigger": false,
+        "isPrimaryTrigger": false,
+        "inputs": {
+          "resource": "Text",
+          "operation": "Message a Model",
+          "model": "gemini-1.5-flash",
+          "prompt": "You are MedGuideAI Multilingual Voice Guide.\nPatient Name: {{ $('Webhook Trigger').item.json.body.patientName || 'Patient' }}\nLanguage: {{ $('Webhook Trigger').item.json.body.language || 'Tamil' }}\nCare Advice: {{ $('Webhook Trigger').item.json.body.patientExplanation || 'Follow discharge care' }}\n\nTASK:\nWrite a warm, 40-word spoken voice note script in {{ $('Webhook Trigger').item.json.body.language || 'Tamil' }} for a clinician speaking directly to the patient.\nMake it sound natural, calm, and reassuring.\nWrite ONLY the spoken words in {{ $('Webhook Trigger').item.json.body.language || 'Tamil' }}.",
+          "options": {
+            "temperature": 0.3
+          }
+        }
+      },
+      "width": 220,
+      "height": 94
+    },
+    {
+      "id": "respondToWebhook-whatsapp",
+      "type": "action",
+      "position": {
+        "x": 940,
+        "y": 200
+      },
+      "data": {
+        "label": "Webhook Response",
+        "toolId": "respondToWebhook",
+        "toolData": {
+          "id": "respondToWebhook",
+          "displayName": "Webhook Response",
+          "category": "Input /  Output",
+          "icon": "reply",
+          "description": "Send status Delivered confirmation with text and voice scripts to MedGuideAI"
+        },
+        "isTrigger": false,
+        "isPrimaryTrigger": false,
+        "inputs": {
+          "respondWith": "JSON",
+          "responseCode": 200,
+          "responseBody": "={\n  \"status\": \"Delivered\",\n  \"channel\": \"WhatsApp\",\n  \"contentType\": \"Care Packet (Text + Voice)\",\n  \"patientId\": \"{{ $('Webhook Trigger').item.json.body.patientId }}\",\n  \"language\": \"{{ $('Webhook Trigger').item.json.body.language || 'Tamil' }}\",\n  \"textMessage\": \"{{ $('Chat Node 1 (Text Care Plan)').item.json.text || 'Take prescribed medications on time.' }}\",\n  \"voiceScript\": \"{{ $('Chat Node 2 (Voice Note Script)').item.json.text || 'Please follow your recovery instructions.' }}\",\n  \"voiceUrl\": \"http://localhost:5173/patients/{{ $('Webhook Trigger').item.json.body.patientId }}/summary\",\n  \"date\": \"{{ new Date().toLocaleString('en-IN') }}\"\n}"
+        }
+      },
+      "width": 220,
+      "height": 94
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-whatsapp-trigger-chat1",
+      "source": "webhook-whatsapp-trigger",
+      "target": "gemini-text-care-chat",
+      "type": "custom",
+      "data": {}
+    },
+    {
+      "id": "e-chat1-chat2",
+      "source": "gemini-text-care-chat",
+      "target": "gemini-voice-script-chat",
+      "type": "custom",
+      "data": {}
+    },
+    {
+      "id": "e-chat2-respond",
+      "source": "gemini-voice-script-chat",
+      "target": "respondToWebhook-whatsapp",
+      "type": "custom",
+      "data": {}
+    }
+  ]
+}

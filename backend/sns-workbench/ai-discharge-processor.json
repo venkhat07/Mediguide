@@ -1,0 +1,169 @@
+{
+  "name": "MedGuideAI - 01 AI Discharge Summary Processor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discharge-summary/process",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook (POST /discharge-summary/process)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "discharge-summary-process"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract incoming fields from multipart/form-data or JSON body\nconst body = $json.body || $json;\nconst patientId = body.patientId || 'P1001';\nconst patientName = body.patientName || 'Patient';\nconst language = body.language || 'English';\nconst dischargeDate = body.dischargeDate || new Date().toISOString().split('T')[0];\nconst fileText = body.fileContent || body.clinicalNotes || 'Discharge Clinical Summary: Patient is recovering following hospital treatment. Follow prescribed medications and rest.';\n\nreturn [{\n  json: {\n    patientId,\n    patientName,\n    language,\n    dischargeDate,\n    clinicalNotes: fileText\n  }\n}];"
+      },
+      "id": "parse-request",
+      "name": "Parse Patient & Document Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "={{ $env.GEMINI_API_KEY || 'REPLACE_WITH_YOUR_GEMINI_API_KEY' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"You are a board-certified physician and expert patient educator. Analyze the clinical discharge summary below.\\n\\n1. Extract the medical facts into structured categories.\\n2. Translate and adapt the advice for a patient whose preferred language is {{ $json.language }}.\\n3. Simplify all medical explanations to a 6th-grade reading level so an ordinary person can easily understand their care plan.\\n4. Explain why each medication is given and exactly how to take it.\\n\\nClinical Summary:\\n{{ $json.clinicalNotes }}\\n\\nPatient Name: {{ $json.patientName }}\\nTarget Language: {{ $json.language }}\\n\\nRespond ONLY with a valid JSON object strictly formatted as:\\n{\\n  \\\"diagnosis\\\": [\\\"Condition 1\\\", \\\"Condition 2\\\"],\\n  \\\"medications\\\": [\\n    {\\n      \\\"name\\\": \\\"Medication Name\\\",\\n      \\\"dosage\\\": \\\"e.g. 500 mg\\\",\\n      \\\"frequency\\\": \\\"e.g. Twice daily\\\",\\n      \\\"duration\\\": \\\"e.g. 30 days\\\",\\n      \\\"explanation\\\": \\\"Simple explanation of what it does and instructions\\\"\\n    }\\n  ],\\n  \\\"diet\\\": [\\\"Diet guideline 1\\\", \\\"Diet guideline 2\\\"],\\n  \\\"restrictions\\\": [\\\"Activity restriction 1\\\"],\\n  \\\"followUp\\\": [\\\"Follow-up appointment instructions\\\"],\\n  \\\"warningSigns\\\": [\\\"Emergency symptom 1\\\", \\\"Emergency symptom 2\\\"],\\n  \\\"patientExplanation\\\": \\\"A warm, reassuring paragraph summarizing their health situation and instructions in {{ $json.language }}\\\"\\n}\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"responseMimeType\": \"application/json\",\n    \"temperature\": 0.2\n  }\n}",
+        "options": {}
+      },
+      "id": "gemini-llm-node",
+      "name": "Gemini Clinical Extraction & Translation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse LLM Output and format response for MedGuideAI\nconst inputData = $('Parse Patient & Document Info').first().json;\nconst response = $json;\nlet parsedResult = {};\n\ntry {\n  const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text || response.text || '{}';\n  const cleanJson = rawText.replace(/```json\\n?|```/g, '').trim();\n  parsedResult = JSON.parse(cleanJson);\n} catch (e) {\n  parsedResult = {\n    diagnosis: ['Clinical Procedure Recovery'],\n    medications: [\n      {\n        name: 'Prescribed Regimen',\n        dosage: 'As directed',\n        frequency: 'Daily',\n        duration: '7-14 days',\n        explanation: 'Take as directed on medicine package.'\n      }\n    ],\n    diet: ['Balanced diet with plenty of fluids'],\n    restrictions: ['Rest and avoid heavy exertion'],\n    followUp: ['Follow up with your primary physician in 1-2 weeks'],\n    warningSigns: ['High fever', 'Severe pain', 'Shortness of breath'],\n    patientExplanation: 'Please rest and follow the prescribed medications carefully. Contact the hospital if you experience severe symptoms.'\n  };\n}\n\nconst formattedPatient = {\n  id: inputData.patientId,\n  name: inputData.patientName,\n  language: inputData.language,\n  dischargeDate: inputData.dischargeDate,\n  processingStatus: 'Completed',\n  whatsappStatus: 'Pending',\n  diagnosis: parsedResult.diagnosis || [],\n  medications: parsedResult.medications || [],\n  diet: parsedResult.diet || [],\n  restrictions: parsedResult.restrictions || [],\n  followUp: parsedResult.followUp || [],\n  warningSigns: parsedResult.warningSigns || [],\n  patientExplanation: parsedResult.patientExplanation || ''\n};\n\nreturn [{\n  json: {\n    status: 'success',\n    patient: formattedPatient,\n    summary: formattedPatient,\n    patient_explanation: formattedPatient.patientExplanation,\n    communication: {\n      whatsapp_status: 'pending'\n    }\n  }\n}];"
+      },
+      "id": "format-response",
+      "name": "Format MedGuideAI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, GET, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1080,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook (POST /discharge-summary/process)": {
+      "main": [
+        [
+          {
+            "node": "Parse Patient & Document Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Patient & Document Info": {
+      "main": [
+        [
+          {
+            "node": "Gemini Clinical Extraction & Translation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Clinical Extraction & Translation": {
+      "main": [
+        [
+          {
+            "node": "Format MedGuideAI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format MedGuideAI Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

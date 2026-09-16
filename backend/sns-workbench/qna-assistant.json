@@ -1,0 +1,166 @@
+{
+  "name": "MedGuideAI - 04 Clinical AI Q&A Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qna/ask",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-qna",
+      "name": "Webhook (POST /qna/ask)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "qna-ask-handler"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Patient Discharge Context for Clinical Assistant\nconst body = $json.body || $json;\nconst patientId = body.patientId || 'P1001';\nconst question = body.question || 'Can I take my medication with food?';\n\nconst patientRecords = {\n  P1001: {\n    name: 'Alex Kumar',\n    diagnosis: 'Type 2 Diabetes Mellitus, Mild Hypertension',\n    medications: 'Metformin 500mg (twice daily after meals), Amlodipine 5mg (once daily morning)',\n    diet: 'Low sugar, high fiber, reduced carbohydrates',\n    restrictions: 'Avoid heavy lifting for 1 week'\n  },\n  P1002: {\n    name: 'Priya Sharma',\n    diagnosis: 'Acute Bronchitis',\n    medications: 'Azithromycin 500mg (once daily for 3 days), Cetirizine 10mg (once at night for 5 days)',\n    diet: 'Warm fluids, avoid cold drinks',\n    restrictions: 'Rest for 3-4 days'\n  },\n  P1003: {\n    name: 'Arun Raj',\n    diagnosis: 'Post-operative recovery - Appendectomy',\n    medications: 'Paracetamol 650mg (every 6 hours if needed for pain), Pantoprazole 40mg (once daily before breakfast)',\n    diet: 'Light, easily digestible food',\n    restrictions: 'No heavy lifting for 4 weeks'\n  }\n};\n\nconst context = patientRecords[patientId] || patientRecords['P1001'];\n\nreturn [{\n  json: {\n    patientId,\n    question,\n    patientContext: context\n  }\n}];"
+      },
+      "id": "prepare-qna-context",
+      "name": "Lookup Patient Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "={{ $env.GEMINI_API_KEY || 'REPLACE_WITH_YOUR_GEMINI_API_KEY' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"You are MedGuideAI, a compassionate clinical post-discharge assistant for St. Jude Memorial Hospital.\\n\\nPatient Record Context:\\n- Name: {{ $json.patientContext.name }}\\n- Diagnosis: {{ $json.patientContext.diagnosis }}\\n- Medications: {{ $json.patientContext.medications }}\\n- Dietary Guidelines: {{ $json.patientContext.diet }}\\n- Restrictions: {{ $json.patientContext.restrictions }}\\n\\nPatient Question: \\\"{{ $json.question }}\\\"\\n\\nInstructions:\\n1. Answer clearly, accurately, and reassuringly, grounded in the patient's specific discharge instructions.\\n2. Keep your answer concise (2-4 sentences max), easy to understand without complex medical jargon.\\n3. If the patient mentions severe warning signs (e.g. chest pain, severe shortness of breath, sudden weakness, bleeding), urge them to immediately contact the hospital helpline or emergency room.\\n4. Do not recommend unauthorized new medications outside their discharge plan.\\n\\nProvide ONLY your direct patient reply text.\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"temperature\": 0.3\n  }\n}",
+        "options": {}
+      },
+      "id": "gemini-qna-node",
+      "name": "Gemini Clinical Q&A Engine",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format response for MedGuideAI frontend chat\nconst response = $json;\nlet answerText = '';\n\ntry {\n  answerText = response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';\n} catch (e) {\n  answerText = 'Please take your medications as directed in your discharge summary. If you experience severe symptoms, contact your doctor immediately.';\n}\n\nif (!answerText) {\n  answerText = 'Please consult your care team or follow the instructions in your discharge summary.';\n}\n\nreturn [{\n  json: {\n    from: 'ai',\n    text: answerText,\n    time: new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),\n    status: 'Delivered'\n  }\n}];"
+      },
+      "id": "format-qna-output",
+      "name": "Format Q&A Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, GET, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-qna-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1160,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook (POST /qna/ask)": {
+      "main": [
+        [
+          {
+            "node": "Lookup Patient Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Patient Context": {
+      "main": [
+        [
+          {
+            "node": "Gemini Clinical Q&A Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Clinical Q&A Engine": {
+      "main": [
+        [
+          {
+            "node": "Format Q&A Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Q&A Message": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

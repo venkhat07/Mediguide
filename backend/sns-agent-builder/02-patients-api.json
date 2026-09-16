@@ -1,0 +1,70 @@
+{
+  "nodes": [
+    {
+      "id": "webhook-patients-trigger",
+      "type": "webhook",
+      "position": {
+        "x": 100,
+        "y": 200
+      },
+      "data": {
+        "label": "Webhook Trigger",
+        "toolId": "webhook",
+        "toolData": {
+          "id": "webhook",
+          "displayName": "Webhook Trigger",
+          "category": "Input /  Output",
+          "icon": "webhook",
+          "description": "Trigger patient records endpoint"
+        },
+        "isTrigger": true,
+        "isPrimaryTrigger": true,
+        "inputs": {
+          "path": "patients",
+          "method": "POST",
+          "responseMode": "respondWithNode",
+          "authentication": "none"
+        }
+      },
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": "respondToWebhook-patients",
+      "type": "action",
+      "position": {
+        "x": 420,
+        "y": 200
+      },
+      "data": {
+        "label": "Webhook Response",
+        "toolId": "respondToWebhook",
+        "toolData": {
+          "id": "respondToWebhook",
+          "displayName": "Webhook Response",
+          "category": "Input /  Output",
+          "icon": "reply",
+          "description": "Send patient data to MedGuideAI"
+        },
+        "isTrigger": false,
+        "isPrimaryTrigger": false,
+        "inputs": {
+          "respondWith": "JSON",
+          "responseCode": 200,
+          "responseBody": "={{ $json.body }}"
+        }
+      },
+      "width": 220,
+      "height": 94
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-patients-webhook-respond",
+      "source": "webhook-patients-trigger",
+      "target": "respondToWebhook-patients",
+      "type": "custom",
+      "data": {}
+    }
+  ]
+}

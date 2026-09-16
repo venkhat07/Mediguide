@@ -1,0 +1,95 @@
+{
+  "name": "MedGuideAI - 02 Patients & Analytics API",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "patients",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-patients",
+      "name": "Webhook (POST /patients)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        260
+      ],
+      "webhookId": "patients-handler"
+    },
+    {
+      "parameters": {
+        "jsCode": "// In-memory / State store mock simulator for patients\n// When connected to PostgreSQL / Supabase, replace with Database node.\nconst body = $json.body || $json;\nconst action = body.action || ($json.query && $json.query.action) || 'list';\n\nconst defaultPatients = [\n  {\n    id: 'P1001',\n    name: 'Alex Kumar',\n    phone: '+91 98765 43210',\n    language: 'Tamil',\n    dischargeDate: '2026-09-05',\n    processingStatus: 'Completed',\n    whatsappStatus: 'Delivered',\n    diagnosis: ['Type 2 Diabetes Mellitus', 'Mild Hypertension'],\n    medications: [\n      { name: 'Metformin', dosage: '500 mg', frequency: 'Twice daily', duration: '30 days', explanation: 'Helps keep your blood sugar levels steady. Take after meals.' },\n      { name: 'Amlodipine', dosage: '5 mg', frequency: 'Once daily', duration: '30 days', explanation: 'Keeps your blood pressure controlled. Take at the same time each morning.' }\n    ],\n    diet: ['Reduce sugar and refined carbohydrates', 'Prefer whole grains and vegetables', 'Avoid sugary beverages'],\n    restrictions: ['Avoid heavy lifting for 1 week', 'Light walking is encouraged'],\n    followUp: ['Visit the clinic in 2 weeks for a blood sugar check', 'Bring your glucose log to the follow-up visit'],\n    warningSigns: ['Blurred vision or dizziness', 'Excessive thirst or frequent urination', 'Chest pain or breathlessness'],\n    patientExplanation: 'Your reports show your blood sugar and blood pressure were a little high, so the doctor has started two tablets to help control them. Take Metformin after breakfast and dinner, and Amlodipine every morning. Try to eat less sugar and walk daily, and come back in 2 weeks so the doctor can check your progress.'\n  },\n  {\n    id: 'P1002',\n    name: 'Priya Sharma',\n    phone: '+91 91234 56780',\n    language: 'Hindi',\n    dischargeDate: '2026-09-07',\n    processingStatus: 'Completed',\n    whatsappStatus: 'Sent',\n    diagnosis: ['Acute Bronchitis'],\n    medications: [\n      { name: 'Azithromycin', dosage: '500 mg', frequency: 'Once daily', duration: '3 days', explanation: 'An antibiotic to clear the chest infection. Finish the full course even if you feel better.' },\n      { name: 'Cetirizine', dosage: '10 mg', frequency: 'Once at night', duration: '5 days', explanation: 'Reduces cough and throat irritation.' }\n    ],\n    diet: ['Drink warm fluids frequently', 'Avoid cold drinks and ice cream'],\n    restrictions: ['Rest for 3-4 days', 'Avoid dusty or smoky environments'],\n    followUp: ['Follow up only if cough persists beyond 7 days'],\n    warningSigns: ['High fever above 102°F', 'Difficulty breathing', 'Chest pain'],\n    patientExplanation: 'You were treated for a chest infection. Please complete all 3 days of the antibiotic, drink warm fluids, and rest at home. Come back if your fever gets very high or you find it hard to breathe.'\n  },\n  {\n    id: 'P1003',\n    name: 'Arun Raj',\n    phone: '+91 90000 11122',\n    language: 'English',\n    dischargeDate: '2026-09-09',\n    processingStatus: 'Processing',\n    whatsappStatus: 'Pending',\n    diagnosis: ['Post-operative recovery – Appendectomy'],\n    medications: [\n      { name: 'Paracetamol', dosage: '650 mg', frequency: 'Every 6 hours if needed', duration: '5 days', explanation: 'For pain relief after surgery.' },\n      { name: 'Pantoprazole', dosage: '40 mg', frequency: 'Once daily before breakfast', duration: '5 days', explanation: 'Protects your stomach while on other medicines.' }\n    ],\n    diet: ['Start with light, easily digestible food', 'Gradually return to a normal diet over a few days'],\n    restrictions: ['No heavy lifting for 4 weeks', 'Avoid strenuous exercise'],\n    followUp: ['Suture removal in 7 days at the surgical clinic'],\n    warningSigns: ['Redness, swelling or discharge at the wound site', 'Fever', 'Severe abdominal pain'],\n    patientExplanation: 'Your surgery went well. Take it easy for the next few weeks, avoid heavy lifting, and keep the wound area clean and dry. Come back in 7 days to have your stitches removed.'\n  },\n  {\n    id: 'P1004',\n    name: 'Meena Krishnan',\n    phone: '+91 93456 78901',\n    language: 'Malayalam',\n    dischargeDate: '2026-09-10',\n    processingStatus: 'Pending',\n    whatsappStatus: 'Pending',\n    diagnosis: [],\n    medications: [],\n    diet: [],\n    restrictions: [],\n    followUp: [],\n    warningSigns: [],\n    patientExplanation: ''\n  }\n];\n\nif (action === 'create' || body.name) {\n  const newPatient = {\n    id: body.patientId || `P${1000 + defaultPatients.length + 1}`,\n    name: body.name,\n    phone: body.phone,\n    language: body.language || 'English',\n    dischargeDate: body.dischargeDate || new Date().toISOString().split('T')[0],\n    processingStatus: 'Pending',\n    whatsappStatus: 'Pending',\n    diagnosis: [],\n    medications: [],\n    diet: [],\n    restrictions: [],\n    followUp: [],\n    warningSigns: [],\n    patientExplanation: ''\n  };\n  return [{ json: { status: 'success', data: newPatient } }];\n}\n\nif (action === 'get' && body.patientId) {\n  const found = defaultPatients.find(p => p.id === body.patientId);\n  return [{ json: { status: 'success', data: found || null } }];\n}\n\nif (action === 'stats') {\n  return [{\n    json: {\n      status: 'success',\n      data: {\n        totalPatients: defaultPatients.length,\n        summariesProcessed: defaultPatients.filter(p => p.processingStatus === 'Completed').length,\n        messagesSent: 4,\n        pendingProcessing: defaultPatients.filter(p => p.processingStatus !== 'Completed').length\n      }\n    }\n  }];\n}\n\nreturn [{ json: { status: 'success', data: defaultPatients } }];"
+      },
+      "id": "process-patients",
+      "name": "Route Patients Operation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        450,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.data) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, GET, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-patients-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        700,
+        260
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook (POST /patients)": {
+      "main": [
+        [
+          {
+            "node": "Route Patients Operation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Patients Operation": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
