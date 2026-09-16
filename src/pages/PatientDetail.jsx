@@ -3,19 +3,38 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import PatientInfoCard from '../components/PatientInfoCard';
 import StatusBadge from '../components/StatusBadge';
 import Disclaimer from '../components/Disclaimer';
-import { getPatient, getCommunicationHistory } from '../services/api';
-import { ArrowLeft, FileText, Send, UploadCloud, Stethoscope, Pill, Calendar, Sparkles } from 'lucide-react';
+import { useToast } from '../components/Toast';
+import { getPatient, getCommunicationHistory, translatePatientRecord } from '../services/api';
+import { LANGUAGES } from '../data/mockData';
+import { ArrowLeft, FileText, Send, UploadCloud, Stethoscope, Pill, Calendar, Sparkles, Globe, Loader2 } from 'lucide-react';
 
 export default function PatientDetail() {
   const { id } = useParams();
   const [patient, setPatient] = useState(null);
   const [history, setHistory] = useState([]);
+  const [translating, setTranslating] = useState(false);
   const navigate = useNavigate();
+  const showToast = useToast();
 
   useEffect(() => {
     getPatient(id).then(setPatient);
     getCommunicationHistory(id).then(setHistory);
   }, [id]);
+
+  const handleLanguageChange = async (newLang) => {
+    if (!newLang || newLang === patient.language) return;
+    setTranslating(true);
+    showToast(`Translating care instructions into ${newLang}...`, 'info');
+    try {
+      const updated = await translatePatientRecord(id, newLang);
+      setPatient({ ...updated });
+      showToast(`Care plan successfully translated into ${newLang}!`, 'success');
+    } catch (err) {
+      showToast('Translation error: ' + err.message, 'error');
+    } finally {
+      setTranslating(false);
+    }
+  };
 
   if (!patient) {
     return (
@@ -42,7 +61,23 @@ export default function PatientDetail() {
           </div>
           <div className="subtitle">Clinical summary, simplified instructions, and communication log</div>
         </div>
-        <div className="toolbar" style={{ marginBottom: 0 }}>
+        <div className="toolbar" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {hasSummary && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', padding: '4px 10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <Globe size={15} className="text-emerald" />
+              <select
+                style={{ background: 'transparent', border: 'none', fontWeight: 600, fontSize: '13px', color: '#0f172a', outline: 'none', cursor: 'pointer' }}
+                value={patient.language || 'Tamil'}
+                disabled={translating}
+                onChange={(e) => handleLanguageChange(e.target.value)}
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+              {translating && <Loader2 size={14} className="spin text-emerald" style={{ animation: 'spin 1s linear infinite' }} />}
+            </div>
+          )}
           {hasSummary ? (
             <>
               <button className="btn btn-secondary" onClick={() => navigate(`/patients/${id}/summary`)}>

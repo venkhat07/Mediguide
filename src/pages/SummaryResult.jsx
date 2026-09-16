@@ -1,24 +1,41 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import PatientInfoCard from '../components/PatientInfoCard';
-import SummarySection from '../components/SummarySection';
-import MedicationCard from '../components/MedicationCard';
 import Disclaimer from '../components/Disclaimer';
-import { getPatient } from '../services/api';
+import MedicationCard from '../components/MedicationCard';
+import SummarySection from '../components/SummarySection';
+import { getPatient, translatePatientRecord } from '../services/api';
+import { LANGUAGES } from '../data/mockData';
 import { playSpeech, stopSpeech } from '../utils/speech';
-import { Stethoscope, Pill, Utensils, Activity, Calendar, AlertTriangle, Sparkles, Send, Volume2 } from 'lucide-react';
+import { FileText, Send, Sparkles, Volume2, Pill, Stethoscope, Utensils, Activity, AlertTriangle, Calendar, ShieldAlert, Globe, Loader2 } from 'lucide-react';
 import { useToast } from '../components/Toast';
 
 export default function SummaryResult() {
   const { id } = useParams();
   const [patient, setPatient] = useState(null);
   const [speaking, setSpeaking] = useState(false);
+  const [translating, setTranslating] = useState(false);
   const navigate = useNavigate();
   const showToast = useToast();
 
   useEffect(() => {
     getPatient(id).then(setPatient);
   }, [id]);
+
+  const handleLanguageChange = async (newLang) => {
+    if (!newLang || newLang === patient.language) return;
+    setTranslating(true);
+    showToast(`Translating care summary to ${newLang}...`, 'info');
+    try {
+      const updated = await translatePatientRecord(id, newLang);
+      setPatient({ ...updated });
+      showToast(`Summary translated to ${newLang}!`, 'success');
+    } catch (err) {
+      showToast('Translation error: ' + err.message, 'error');
+    } finally {
+      setTranslating(false);
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -70,7 +87,21 @@ export default function SummaryResult() {
           </div>
           <div className="subtitle">AI-generated post-discharge care guide • Language: {patient.language}</div>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', padding: '6px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <Globe size={16} className="text-emerald" />
+            <select
+              style={{ background: 'transparent', border: 'none', fontWeight: 600, fontSize: '13px', color: '#0f172a', outline: 'none', cursor: 'pointer' }}
+              value={patient.language || 'Tamil'}
+              disabled={translating}
+              onChange={(e) => handleLanguageChange(e.target.value)}
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l} value={l}>{l}</option>
+              ))}
+            </select>
+            {translating && <Loader2 size={14} className="spin text-emerald" style={{ animation: 'spin 1s linear infinite' }} />}
+          </div>
           <button 
             className="btn btn-secondary" 
             onClick={handleReadAloud}

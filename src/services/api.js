@@ -23,7 +23,20 @@ function loadStoredPatients() {
     const raw = typeof window !== 'undefined' ? localStorage.getItem('medguide_patients') : null;
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const storedMap = new Map(parsed.map((p) => [p.id, p]));
+        for (const mp of mockPatients) {
+          if (!storedMap.has(mp.id)) {
+            storedMap.set(mp.id, mp);
+          } else {
+            const existing = storedMap.get(mp.id);
+            if (existing.language === 'Tamil' && !/[\u0B80-\u0BFF]/.test(existing.patientExplanation || '')) {
+              storedMap.set(mp.id, { ...existing, ...mp });
+            }
+          }
+        }
+        return Array.from(storedMap.values());
+      }
     }
   } catch (e) {
     // ignore
@@ -125,7 +138,6 @@ export async function getPatient(patientId) {
       });
       const record = data?.data || data?.patient || data;
       if (record && record.id === patientId) {
-        // Sync local cache
         patients = patients.map((p) => (p.id === patientId ? { ...p, ...record } : p));
         return record;
       }
@@ -134,23 +146,44 @@ export async function getPatient(patientId) {
     }
   }
 
+  let record = null;
   try {
     const cached = sessionStorage.getItem(`patient_${patientId}`);
     if (cached) {
       const parsed = JSON.parse(cached);
       if (parsed && parsed.id === patientId) {
-        patients = patients.map((p) => (p.id === patientId ? { ...p, ...parsed } : p));
-        return parsed;
+        record = parsed;
       }
     }
   } catch (e) {
     // ignore
   }
 
-  await delay(200);
-  const patient = patients.find((p) => p.id === patientId);
-  if (!patient) throw new Error('Patient record not found');
-  return patient;
+  if (!record) {
+    await delay(200);
+    record = patients.find((p) => p.id === patientId);
+  }
+
+  if (!record) throw new Error('Patient record not found');
+
+  // If patient preferred language is non-English and text is in English, ensure target language is translated
+  if (record.language && record.language !== 'English') {
+    const regex = SCRIPT_REGEX[record.language];
+    if (regex && record.patientExplanation && !regex.test(record.patientExplanation)) {
+      try {
+        record = await ensureTargetLanguage(record, record.language);
+        try {
+          sessionStorage.setItem(`patient_${patientId}`, JSON.stringify(record));
+        } catch (e) {}
+        patients = patients.map((p) => (p.id === patientId ? { ...p, ...record } : p));
+        savePatients(patients);
+      } catch (e) {
+        console.warn('[MediGuide AI] Auto-translation on getPatient error:', e);
+      }
+    }
+  }
+
+  return record;
 }
 
 export async function createPatient(data) {
@@ -228,19 +261,38 @@ const SCRIPT_REGEX = {
   Kannada: /[\u0C80-\u0CFF]/,
 };
 
+const CLINICAL_FREQUENCIES = {
+  'as needed': { Tamil: 'தேவைப்படும் போது', Hindi: 'जरूरत पड़ने पर', Telugu: 'అవసరమైనప్పుడు', Malayalam: 'ആവശ്യാനുസരണം', Kannada: 'ಅಗತ್ಯವಿದ್ದಾಗ' },
+  'sos': { Tamil: 'தேவைப்படும் போது', Hindi: 'जरूरत पड़ने पर', Telugu: 'అవసరమైనప్పుడు', Malayalam: 'ആവശ്യാനுസരണം', Kannada: 'ಅಗತ್ಯವಿದ್ದಾಗ' },
+  'once a day': { Tamil: 'ஒரு நாளைக்கு ஒரு முறை', Hindi: 'दिन में एक बार', Telugu: 'రోజుకు ఒకసారి', Malayalam: 'ദിവസത്തിൽ ഒരിക്കൽ', Kannada: 'ದಿನಕ್ಕೆ ಒಂದು ಬಾರಿ' },
+  'once daily': { Tamil: 'ஒரு நாளைக்கு ஒரு முறை', Hindi: 'दिन में एक बार', Telugu: 'రోజుకు ఒకసారి', Malayalam: 'ദിവസത്തിൽ ഒരിക്കൽ', Kannada: 'ದಿನಕ್ಕೆ ಒಂದು ಬಾರಿ' },
+  'twice a day': { Tamil: 'ஒரு நாளைக்கு இரண்டு முறை', Hindi: 'दिन में दो बार', Telugu: 'రోజుకు రెండుసార్లు', Malayalam: 'ദിവസത്തിൽ രണ്ട് തവണ', Kannada: 'ದಿನಕ್ಕೆ ಎರಡು ಬಾರಿ' },
+  'twice daily': { Tamil: 'ஒரு நாளைக்கு இரண்டு முறை', Hindi: 'दिन में दो बार', Telugu: 'రోజుకు రెండుసార్లు', Malayalam: 'ദിവസത്തിൽ രണ്ട് തവണ', Kannada: 'ದಿನಕ್ಕೆ ಎರಡು ಬಾರಿ' },
+  '3 times a day': { Tamil: 'ஒரு நாளைக்கு 3 முறை', Hindi: 'दिन में तीन बार', Telugu: 'రోజుకు 3 సార్లు', Malayalam: 'ദിവസത്തിൽ 3 തവണ', Kannada: 'ದಿನಕ್ಕೆ 3 ಬಾರಿ' },
+  'three times a day': { Tamil: 'ஒரு நாளைக்கு 3 முறை', Hindi: 'दिन में तीन बार', Telugu: 'రోజుకు 3 సార్లు', Malayalam: 'ദിവസத்தில் 3 തവണ', Kannada: 'ದಿನಕ್ಕೆ 3 ಬಾರಿ' },
+  'three times daily': { Tamil: 'ஒரு நாளைக்கு 3 முறை', Hindi: 'दिन में तीन बार', Telugu: 'రోజుకు 3 సార్లు', Malayalam: 'ദിവസത്തിൽ 3 തവണ', Kannada: 'ದಿನಕ್ಕೆ 3 ಬಾರಿ' },
+  '4 times a day': { Tamil: 'ஒரு நாளைக்கு 4 முறை', Hindi: 'दिन में चार बार', Telugu: 'రోజుకు 4 సార్లు', Malayalam: 'ദിവസത്തിൽ 4 തവണ', Kannada: 'ದಿನಕ್ಕೆ 4 ಬಾರಿ' },
+  'as prescribed': { Tamil: 'மருத்துவர் அறிவுறுத்தியபடி', Hindi: 'निर्धारित अनुसार', Telugu: 'సూచించిన విధంగా', Malayalam: 'നിർദ്ദേശിച്ച പ്രകാരം', Kannada: 'ಸೂಚಿಸಿದಂತೆ' },
+  'only when needed for fever': { Tamil: 'காய்ச்சல் ஏற்படும் போது மட்டுமே', Hindi: 'केवल बुखार होने पर', Telugu: 'జ్వరం వచ్చినప్పుడు మాత్రమే', Malayalam: 'പനി ഉള്ളപ്പോൾ മാത്രം', Kannada: 'ಜ್ವರ ಬಂದಾಗ ಮಾತ್ರ' },
+  'complete the full course as prescribed': { Tamil: 'பரிந்துரைக்கப்பட்டபடி முழு பாடத்திட்டத்தையும் முடிக்கவும்', Hindi: 'पूरी दवा का कोर्स समाप्त करें', Telugu: 'సూచించిన కోర్సును పూర్తి చేయండి', Malayalam: 'മുഴുവൻ കോഴ്സും പൂർത്തിയാക്കുക', Kannada: 'ಸಂಪೂರ್ಣ ಕೋರ್ಸ್ ಪೂರ್ಣಗೊಳಿಸಿ' },
+  'complete the full course as advised': { Tamil: 'அறிவுறுத்தப்பட்டபடி முழு பாடத்திட்டத்தையும் முடிக்கவும்', Hindi: 'सलाह के अनुसार पूरी दवा समाप्त करें', Telugu: 'సూచించిన విధంగా కోర్సును పూర్తి చేయండి', Malayalam: 'നിർദ്ദേശിച്ച പ്രകാരം കോഴ്സ് പൂർത്തിയാക്കുക', Kannada: 'ಸಲಹೆಯಂತೆ ಕೋರ್ಸ್ ಪೂರ್ಣಗೊಳಿಸಿ' },
+};
+
 async function translateChunk(chunk, code) {
+  if (!chunk || !chunk.trim()) return chunk;
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const email = `clinician_${Math.floor(Math.random() * 999999)}@mediguide.ai`;
     const res = await fetch(
-      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en|${code}`,
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk.trim())}&langpair=en|${code}&de=${encodeURIComponent(email)}`,
       { signal: controller.signal }
     );
     clearTimeout(timeoutId);
     if (!res.ok) return chunk;
     const data = await res.json();
     const resText = data?.responseData?.translatedText;
-    if (resText && !resText.includes('QUERY LENGTH LIMIT') && data?.responseStatus === 200) {
+    if (resText && !resText.includes('QUERY LENGTH LIMIT') && !resText.includes('MYMEMORY WARNING') && data?.responseStatus === 200) {
       return resText;
     }
     return chunk;
@@ -256,18 +308,24 @@ async function translateText(text, targetLanguage) {
     return text;
   }
 
-  if (text.length <= 350) {
+  // Check clinical frequency shortcut dictionary
+  const lower = text.trim().toLowerCase();
+  if (CLINICAL_FREQUENCIES[lower] && CLINICAL_FREQUENCIES[lower][targetLanguage]) {
+    return CLINICAL_FREQUENCIES[lower][targetLanguage];
+  }
+
+  if (text.length <= 300) {
     return translateChunk(text, code);
   }
 
-  // Split into sentence chunks to stay well under the 500-character limit
+  // Split into sentence chunks to stay well under character limits
   const sentences = text.match(/[^.!?]+[.!?]+|\s*[^.!?]+$/g) || [text];
   const translatedSentences = [];
   for (const sentence of sentences) {
     const trimmed = sentence.trim();
     if (!trimmed) continue;
-    if (trimmed.length > 350) {
-      const subChunks = trimmed.match(/.{1,300}(\s|$)/g) || [trimmed];
+    if (trimmed.length > 300) {
+      const subChunks = trimmed.match(/.{1,250}(\s|$)/g) || [trimmed];
       for (const sub of subChunks) {
         if (sub.trim()) {
           const t = await translateChunk(sub.trim(), code);
@@ -284,12 +342,8 @@ async function translateText(text, targetLanguage) {
 
 async function ensureTargetLanguage(record, targetLanguage) {
   if (!record || !targetLanguage || targetLanguage === 'English') return record;
-  const regex = SCRIPT_REGEX[targetLanguage];
-  if (regex && record.patientExplanation && regex.test(record.patientExplanation)) {
-    return record;
-  }
 
-  console.log(`[MedGuideAI 🌐] Applying multi-language translation for ${targetLanguage}...`);
+  console.log(`[MediGuide AI 🌐] Applying multi-language translation for ${targetLanguage}...`);
   try {
     const translatedExplanation = record.patientExplanation
       ? await translateText(record.patientExplanation, targetLanguage)
@@ -300,6 +354,7 @@ async function ensureTargetLanguage(record, targetLanguage) {
       return Promise.all(items.map((item) => translateText(item, targetLanguage)));
     };
 
+    const translatedDiagnosis = await translateList(record.diagnosis);
     const translatedDiet = await translateList(record.diet);
     const translatedRestrictions = await translateList(record.restrictions);
     const translatedFollowUp = await translateList(record.followUp);
@@ -309,6 +364,8 @@ async function ensureTargetLanguage(record, targetLanguage) {
       ? await Promise.all(
           record.medications.map(async (m) => ({
             ...m,
+            frequency: m.frequency ? await translateText(m.frequency, targetLanguage) : m.frequency,
+            duration: m.duration ? await translateText(m.duration, targetLanguage) : m.duration,
             explanation: m.explanation ? await translateText(m.explanation, targetLanguage) : m.explanation,
           }))
         )
@@ -316,6 +373,8 @@ async function ensureTargetLanguage(record, targetLanguage) {
 
     return {
       ...record,
+      language: targetLanguage,
+      diagnosis: translatedDiagnosis,
       patientExplanation: translatedExplanation,
       diet: translatedDiet,
       restrictions: translatedRestrictions,
@@ -324,9 +383,22 @@ async function ensureTargetLanguage(record, targetLanguage) {
       medications: translatedMedications,
     };
   } catch (err) {
-    console.warn('[MedGuideAI] Translation error:', err);
+    console.warn('[MediGuide AI] Translation error:', err);
     return record;
   }
+}
+
+export async function translatePatientRecord(patientId, targetLanguage) {
+  const patient = await getPatient(patientId);
+  if (!patient) throw new Error('Patient not found');
+  const translated = await ensureTargetLanguage(patient, targetLanguage);
+  translated.language = targetLanguage;
+  try {
+    sessionStorage.setItem(`patient_${patientId}`, JSON.stringify(translated));
+  } catch (e) {}
+  patients = patients.map((p) => (p.id === patientId ? { ...p, ...translated } : p));
+  savePatients(patients);
+  return translated;
 }
 
 // Direct Google Gemini 2.5 Flash Multimodal Medical Extraction Engine
