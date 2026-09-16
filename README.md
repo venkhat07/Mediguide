@@ -1,11 +1,11 @@
-﻿# 🏥 MedGuideAI — Multilingual Post-Discharge Care & Patient Education Portal
+# 🏥 MediGuide AI — Multilingual Post-Discharge Care & Patient Education Portal
 
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Gemini 2.5 Flash](https://img.shields.io/badge/Google%20Gemini-2.5%20Flash-4285F4?logo=google&logoColor=white)](https://ai.google.dev/)
 [![WhatsApp API](https://img.shields.io/badge/WhatsApp-2Chat%20API-25D366?logo=whatsapp&logoColor=white)](https://2chat.co/)
 
-**MedGuideAI** transforms complex hospital clinical discharge summaries into simplified, patient-friendly instructions delivered directly via **WhatsApp** in the patient's native language as both formatted text and spoken audio voice notes.
+**MediGuide AI** transforms complex hospital clinical discharge summaries into simplified, patient-friendly instructions delivered directly via **WhatsApp** in the patient's native language as both formatted text and spoken audio voice notes.
 
 ---
 

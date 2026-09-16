@@ -38,7 +38,7 @@ export default function Sidebar({ open, onClose, hospitalName, staffName, onLogo
             <Stethoscope size={22} strokeWidth={2.5} />
           </div>
           <div className="brand-text">
-            <div className="name">MedGuideAI</div>
+            <div className="name">MediGuide AI</div>
             <div className="tag">Clinical Portal</div>
           </div>
         </div>

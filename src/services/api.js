@@ -1024,7 +1024,7 @@ ${patient?.patientExplanation || 'Please take your medicines on time as advised.
 
 🎙️ *Audio Voice Note:* Spoken audio note attached above.
 ━━━━━━━━━━━━━━━━━━━━
-💬 _MedGuideAI Follow-up Care Channel_`;
+💬 _MediGuide AI Follow-up Care Channel_`;
 
     fetch(endpoint, {
       method: 'POST',
@@ -1113,7 +1113,7 @@ async function callGeminiQnA(patient, question, targetLanguage) {
   const apiKey = GEMINI_API_KEY || 'AIzaSyDrY0crZ8bCIv1uj64RMb0FOVZ3u9G-ck0';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  const prompt = `You are MedGuideAI, a compassionate clinical post-discharge assistant for St. Jude Memorial Hospital.
+  const prompt = `You are MediGuide AI, a compassionate clinical post-discharge assistant for St. Jude Memorial Hospital.
 Patient Context:
 - Name: ${patient?.name || 'Patient'}
 - Preferred Language: ${targetLanguage}

@@ -37,7 +37,7 @@ export default function Login({ onLogin }) {
         <div className="login-hero-side">
           <div className="hero-logo">
             <Stethoscope size={20} />
-            <span style={{ fontWeight: 700, fontSize: '15px' }}>MedGuideAI Clinical Platform</span>
+            <span style={{ fontWeight: 700, fontSize: '15px' }}>MediGuide AI Clinical Platform</span>
           </div>
 
           <h1>Transform Post-Discharge Patient Care with AI</h1>

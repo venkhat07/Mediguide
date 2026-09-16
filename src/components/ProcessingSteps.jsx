@@ -3,7 +3,7 @@ import { CheckCircle2, Loader2, Circle, Sparkles } from 'lucide-react';
 const STEPS = [
   { key: 'uploading', title: 'Uploading Document', desc: 'Securely parsing clinical PDF notes into processing pipeline' },
   { key: 'extracting', title: 'Extracting Clinical Information', desc: 'Identifying discharge diagnoses, prescriptions, and follow-up care' },
-  { key: 'understanding', title: 'MedGuide AI Reasoning Engine', desc: 'Simplifying complex clinical terminology into 6th-grade reading level' },
+  { key: 'understanding', title: 'MediGuide AI Reasoning Engine', desc: 'Simplifying complex clinical terminology into 6th-grade reading level' },
   { key: 'generating', title: 'Multi-Lingual Translation', desc: 'Adapting medical instructions into target patient language' },
   { key: 'preparing', title: 'WhatsApp & SMS Formatting', desc: 'Constructing structured, actionable patient message cards' },
 ];

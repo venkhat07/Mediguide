@@ -129,7 +129,7 @@ ${patient.language === 'Tamil' ? 'உங்கள் மருத்துவர
 📝 *Summary:*
 ${patient.patientExplanation || 'Please take your medicines on time as advised.'}
 ━━━━━━━━━━━━━━━━━━━━
-💬 _MedGuideAI Follow-up Care Channel_`;
+💬 _MediGuide AI Follow-up Care Channel_`;
       const waUrl = `https://api.whatsapp.com/send?phone=${finalPhone}&text=${encodeURIComponent(waAudioText)}`;
       window.open(waUrl, '_blank', 'noopener,noreferrer');
     }
@@ -178,7 +178,7 @@ ${patient.patientExplanation || 'Please follow your prescribed care plan and tak
 
 🎙️ *Audio Voice Note:* Spoken audio note attached above.
 ━━━━━━━━━━━━━━━━━━━━
-💬 _MedGuideAI Multilingual Patient Channel_`;
+💬 _MediGuide AI Multilingual Patient Channel_`;
       const waUrl = `https://api.whatsapp.com/send?phone=${finalPhone}&text=${encodeURIComponent(waText)}`;
       window.open(waUrl, '_blank', 'noopener,noreferrer');
     }

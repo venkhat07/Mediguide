@@ -94,7 +94,7 @@ export default function Settings() {
             </div>
             <div className="field">
               <label>API Gateway Endpoint</label>
-              <input className="input" placeholder="https://api.medguide.ai/v1/whatsapp" disabled />
+              <input className="input" placeholder="https://api.mediguide.ai/v1/whatsapp" disabled />
             </div>
             <div style={{ fontSize: '12px', color: '#64748b' }}>
               Connected via secure HIPAA-compliant AI messaging relay.

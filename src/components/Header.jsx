@@ -32,7 +32,7 @@ export default function Header({ onMenuClick }) {
       <div className="mobile-topbar">
         <div className="brand">
           <Stethoscope size={20} />
-          <span>MedGuideAI</span>
+          <span>MediGuide AI</span>
         </div>
         <button aria-label="Open menu" onClick={onMenuClick}>
           <Menu size={20} />
