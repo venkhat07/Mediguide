@@ -37,7 +37,7 @@ graph TD
 
 - **Frontend:** React 18, React Router DOM v6, Lucide Icons, Modern CSS3 Clinical Theme
 - **Build Tool:** Vite 5 with dev proxy for CORS-free API routing
-- **AI & LLM:** Google Gemini 2.5 Flash (\gemini-2.5-flash\) with JSON Schema Enforcement
+- **AI & LLM:** Google Gemini 3.6 Flash (\gemini-3.6-flash\) with JSON Schema Enforcement
 - **Messaging:** 2Chat WhatsApp API
 - **Audio / Voice:** Multi-sentence TTS engine & Catbox public MP3 hosting
 - **Workflow Backend:** SNS Workbench / n8n Webhook Architecture
