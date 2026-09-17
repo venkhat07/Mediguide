@@ -1,0 +1,2460 @@
+{
+  "_platform": "agentbuilder",
+  "_version": 1,
+  "_exportedAt": "2026-09-17T09:54:31.077Z",
+  "_fingerprint": "YWN0aW9uOmNvZGUuZXhlY3V0ZXxhY3Rpb246cG9zdGdyZXMuc2VsZWN0fGFjdGlv",
+  "nodes": [
+    {
+      "id": "webhook-wa-01",
+      "data": {
+        "label": "Patient Care Packet Dispatch Webhook",
+        "inputs": {
+          "path": "api/patient/send-care-packet",
+          "method": "POST",
+          "responseMode": "respondWithNode"
+        },
+        "toolId": "webhook",
+        "toolData": {
+          "id": "webhook",
+          "displayName": "Webhook Trigger",
+          "category": "Input /  Output",
+          "icon": "webhook",
+          "description": "Trigger workflow via webhook",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "The path to listen on (e.g. \"my-hook\")"
+              },
+              "method": {
+                "type": "string",
+                "enum": [
+                  "GET",
+                  "POST",
+                  "PUT",
+                  "DELETE",
+                  "PATCH",
+                  "HEAD"
+                ],
+                "default": "POST",
+                "description": "HTTP Method"
+              },
+              "responseMode": {
+                "type": "string",
+                "enum": [
+                  "onReceived",
+                  "lastNode",
+                  "respondWithNode",
+                  "streaming"
+                ],
+                "default": "lastNode",
+                "description": "When to respond"
+              },
+              "authentication": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "basicAuth",
+                  "headerAuth",
+                  "jwtAuth"
+                ],
+                "default": "none",
+                "description": "Authentication"
+              },
+              "basicAuthUser": {
+                "type": "string",
+                "description": "Username"
+              },
+              "basicAuthPassword": {
+                "type": "string",
+                "description": "Password"
+              },
+              "headerAuthName": {
+                "type": "string",
+                "description": "Name"
+              },
+              "headerAuthValue": {
+                "type": "string",
+                "description": "Value"
+              },
+              "jwtSecret": {
+                "type": "string",
+                "description": "Secret"
+              },
+              "jwtAlgorithm": {
+                "type": "string",
+                "enum": [
+                  "HS256",
+                  "HS384",
+                  "HS512"
+                ],
+                "default": "HS256",
+                "description": "Algorithm"
+              },
+              "sessionClaim": {
+                "type": "string",
+                "default": "sub",
+                "description": "JWT claim used to identify the session"
+              },
+              "requireRoleCheck": {
+                "type": "boolean",
+                "default": false,
+                "description": "Require Role Check (RBAC)"
+              },
+              "roleClaimKey": {
+                "type": "string",
+                "default": "role",
+                "description": "Role Claim Key"
+              },
+              "allowedRoles": {
+                "type": "string",
+                "default": "admin, staff",
+                "description": "Allowed Roles (comma separated)"
+              },
+              "sessionSource": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "auto",
+                  "header",
+                  "cookie",
+                  "body"
+                ],
+                "default": "none",
+                "description": "Session Source"
+              },
+              "sessionSourceName": {
+                "type": "string",
+                "description": "Session Source Name (header / cookie / body field)"
+              },
+              "options": {
+                "type": "object",
+                "properties": {
+                  "allowedOrigins": {
+                    "type": "string",
+                    "description": "Allowed Origins (CORS)"
+                  },
+                  "binaryDataFieldName": {
+                    "type": "string",
+                    "description": "Field Name for Binary Data"
+                  },
+                  "ignoreBots": {
+                    "type": "boolean",
+                    "description": "Ignore Bots"
+                  },
+                  "ipAllowlist": {
+                    "type": "string",
+                    "description": "IP(s) Allowlist"
+                  },
+                  "noResponseBody": {
+                    "type": "boolean",
+                    "description": "No Response Body"
+                  },
+                  "rawBody": {
+                    "type": "boolean",
+                    "description": "Raw Body"
+                  },
+                  "responseCode": {
+                    "type": "number",
+                    "description": "Response Code"
+                  },
+                  "responseData": {
+                    "type": "string",
+                    "description": "Response Data"
+                  }
+                },
+                "additionalProperties": false,
+                "default": {},
+                "description": "Options"
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "fields": [
+            {
+              "name": "path",
+              "displayName": "Path",
+              "type": "string",
+              "default": "",
+              "required": true,
+              "description": "The path to listen on (e.g. \"my-hook\")"
+            },
+            {
+              "name": "method",
+              "displayName": "HTTP Method",
+              "type": "options",
+              "default": "POST",
+              "required": true,
+              "options": [
+                {
+                  "name": "GET",
+                  "value": "GET"
+                },
+                {
+                  "name": "POST",
+                  "value": "POST"
+                },
+                {
+                  "name": "PUT",
+                  "value": "PUT"
+                },
+                {
+                  "name": "DELETE",
+                  "value": "DELETE"
+                },
+                {
+                  "name": "PATCH",
+                  "value": "PATCH"
+                },
+                {
+                  "name": "HEAD",
+                  "value": "HEAD"
+                }
+              ],
+              "description": "HTTP Method to listen for"
+            },
+            {
+              "name": "responseMode",
+              "displayName": "Respond",
+              "type": "options",
+              "default": "lastNode",
+              "required": true,
+              "options": [
+                {
+                  "name": "Immediately",
+                  "value": "onReceived"
+                },
+                {
+                  "name": "When Last Node Finishes",
+                  "value": "lastNode"
+                },
+                {
+                  "name": "Using 'Respond to Webhook' Node",
+                  "value": "respondWithNode"
+                },
+                {
+                  "name": "Streaming",
+                  "value": "streaming"
+                }
+              ],
+              "description": "When to respond to the webhook request"
+            },
+            {
+              "name": "authentication",
+              "displayName": "Authentication",
+              "type": "options",
+              "default": "none",
+              "options": [
+                {
+                  "name": "Basic Auth",
+                  "value": "basicAuth"
+                },
+                {
+                  "name": "Header Auth",
+                  "value": "headerAuth"
+                },
+                {
+                  "name": "JWT Auth",
+                  "value": "jwtAuth"
+                },
+                {
+                  "name": "None",
+                  "value": "none"
+                }
+              ],
+              "description": "The type of authentication to use for incoming webhook requests"
+            },
+            {
+              "name": "sessionSource",
+              "displayName": "Session Source",
+              "type": "options",
+              "default": "none",
+              "options": [
+                {
+                  "name": "None (legacy, no session)",
+                  "value": "none"
+                },
+                {
+                  "name": "Auto (platform issues a session id)",
+                  "value": "auto"
+                },
+                {
+                  "name": "From Header",
+                  "value": "header"
+                },
+                {
+                  "name": "From Cookie",
+                  "value": "cookie"
+                },
+                {
+                  "name": "From Body Field",
+                  "value": "body"
+                }
+              ],
+              "description": "How the platform identifies the caller for per-user session continuity. Required when memory or loops should partition by caller."
+            },
+            {
+              "name": "sessionSourceName",
+              "displayName": "Session Source Name",
+              "type": "string",
+              "default": "",
+              "placeholder": "e.g. X-Caller-Id (header), userId (body field), session_id (cookie)",
+              "description": "Header name, body field path, or cookie name used as the caller id.",
+              "displayOptions": {
+                "show": {
+                  "sessionSource": [
+                    "header",
+                    "cookie",
+                    "body"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "basicAuthUser",
+              "displayName": "User",
+              "type": "string",
+              "default": "",
+              "required": true,
+              "description": "The username for Basic Authentication",
+              "displayOptions": {
+                "show": {
+                  "authentication": [
+                    "basicAuth"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "basicAuthPassword",
+              "displayName": "Password",
+              "type": "string",
+              "default": "",
+              "required": true,
+              "typeOptions": {
+                "password": true
+              },
+              "description": "The password for Basic Authentication",
+              "displayOptions": {
+                "show": {
+                  "authentication": [
+                    "basicAuth"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "headerAuthName",
+              "displayName": "Name",
+              "type": "string",
+              "default": "",
+              "required": true,
+              "description": "The header name to check for authentication",
+              "displayOptions": {
+                "show": {
+                  "authentication": [
+                    "headerAuth"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "headerAuthValue",
+              "displayName": "Value",
+              "type": "string",
+              "default": "",
+              "required": true,
+              "typeOptions": {
+                "password": true
+              },
+              "description": "The expected header value for authentication",
+              "displayOptions": {
+                "show": {
+                  "authentication": [
+                    "headerAuth"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "jwtSecret",
+              "displayName": "Secret",
+              "type": "string",
+              "default": "",
+              "required": true,
+              "typeOptions": {
+                "password": true
+              },
+              "description": "The secret key used to verify the JWT token",
+              "displayOptions": {
+                "show": {
+                  "authentication": [
+                    "jwtAuth"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "jwtAlgorithm",
+              "displayName": "Algorithm",
+              "type": "options",
+              "default": "HS256",
+              "options": [
+                {
+                  "name": "HS256",
+                  "value": "HS256"
+                },
+                {
+                  "name": "HS384",
+                  "value": "HS384"
+                },
+                {
+                  "name": "HS512",
+                  "value": "HS512"
+                }
+              ],
+              "description": "The algorithm used to sign the JWT token",
+              "displayOptions": {
+                "show": {
+                  "authentication": [
+                    "jwtAuth"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "sessionClaim",
+              "displayName": "Session Claim",
+              "type": "string",
+              "default": "sub",
+              "description": "The claim in the JWT payload that identifies the user (e.g. sub, email, userId). Leave blank to skip session tracking.",
+              "displayOptions": {
+                "show": {
+                  "authentication": [
+                    "jwtAuth"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "requireRoleCheck",
+              "displayName": "Require Role Check (RBAC)",
+              "type": "boolean",
+              "default": false,
+              "description": "If enabled, the incoming JWT must contain an authorized role claim to execute the workflow.",
+              "displayOptions": {
+                "show": {
+                  "authentication": [
+                    "jwtAuth"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "roleClaimKey",
+              "displayName": "Role Claim Key",
+              "type": "string",
+              "default": "role",
+              "description": "The field name inside the JWT payload that contains the user's role (e.g., \"role\", \"groups\").",
+              "displayOptions": {
+                "show": {
+                  "authentication": [
+                    "jwtAuth"
+                  ],
+                  "requireRoleCheck": [
+                    true
+                  ]
+                }
+              }
+            },
+            {
+              "name": "allowedRoles",
+              "displayName": "Allowed Roles",
+              "type": "string",
+              "default": "admin, staff",
+              "description": "A comma-separated list of roles that are allowed to trigger this workflow. If empty, all roles pass.",
+              "displayOptions": {
+                "show": {
+                  "authentication": [
+                    "jwtAuth"
+                  ],
+                  "requireRoleCheck": [
+                    true
+                  ]
+                }
+              }
+            },
+            {
+              "name": "options",
+              "displayName": "Options",
+              "type": "collection",
+              "default": {},
+              "placeholder": "Add option",
+              "fields": [
+                {
+                  "name": "allowedOrigins",
+                  "displayName": "Allowed Origins (CORS)",
+                  "type": "string",
+                  "default": "*",
+                  "placeholder": "*",
+                  "description": "Comma-separated list of allowed origins for CORS. Use * to allow all origins."
+                },
+                {
+                  "name": "binaryDataFieldName",
+                  "displayName": "Field Name for Binary Data",
+                  "type": "string",
+                  "default": "data",
+                  "placeholder": "data",
+                  "description": "The name of the field in the request that contains binary data (for file uploads)."
+                },
+                {
+                  "name": "ignoreBots",
+                  "displayName": "Ignore Bots",
+                  "type": "boolean",
+                  "default": false,
+                  "description": "If enabled, requests from known bots (crawlers, spiders) will be ignored."
+                },
+                {
+                  "name": "ipAllowlist",
+                  "displayName": "IP(s) Allowlist",
+                  "type": "string",
+                  "default": "",
+                  "placeholder": "e.g. 127.0.0.1, 192.168.1.0/24",
+                  "description": "Comma-separated list of IPs or CIDR ranges. Only these IPs can trigger the webhook."
+                },
+                {
+                  "name": "noResponseBody",
+                  "displayName": "No Response Body",
+                  "type": "boolean",
+                  "default": false,
+                  "description": "If enabled, the webhook will respond with an empty body (only status code)."
+                },
+                {
+                  "name": "rawBody",
+                  "displayName": "Raw Body",
+                  "type": "boolean",
+                  "default": false,
+                  "description": "If enabled, the raw request body will be passed as-is without parsing."
+                },
+                {
+                  "name": "responseData",
+                  "displayName": "Response Data",
+                  "type": "string",
+                  "default": "",
+                  "placeholder": "Response body content",
+                  "description": "Custom response data to return when the webhook is triggered (JSON or text)."
+                }
+              ]
+            }
+          ]
+        },
+        "isTrigger": true,
+        "connectedHandles": [],
+        "isPrimaryTrigger": true
+      },
+      "width": 280,
+      "height": 120,
+      "position": {
+        "x": 50,
+        "y": 300
+      },
+      "positionAbsolute": {
+        "x": 50,
+        "y": 300
+      },
+      "type": "webhook"
+    },
+    {
+      "id": "postgres-fetch-02",
+      "data": {
+        "label": "Fetch Patient Record & Regimen",
+        "inputs": {
+          "schema": "public",
+          "tableMode": "list",
+          "table": "discharge_summaries",
+          "conditions": [
+            {
+              "field": "mrn",
+              "operator": "equal",
+              "value": "{{ $json.body.mrn || $json.body.patientId || \"MRN-P1008\" }}"
+            }
+          ]
+        },
+        "toolId": "postgres.select",
+        "toolData": {
+          "id": "postgres.select",
+          "displayName": "Select Rows",
+          "category": "Memory & State",
+          "provider": "postgres",
+          "operation": "select",
+          "icon": "Database",
+          "description": "Fetch rows from a PostgreSQL table with filtering and sorting",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "credentialId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "schemaMode": {
+                "type": "string",
+                "enum": [
+                  "list",
+                  "name"
+                ],
+                "default": "list"
+              },
+              "schema": {
+                "type": "string",
+                "minLength": 1,
+                "default": "public"
+              },
+              "tableMode": {
+                "type": "string",
+                "enum": [
+                  "list",
+                  "name"
+                ],
+                "default": "list"
+              },
+              "table": {
+                "type": "string",
+                "minLength": 1
+              },
+              "queryBatching": {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "independently",
+                  "transaction"
+                ],
+                "default": "single",
+                "description": "Query Batching"
+              },
+              "queryTimeout": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Connection timeout in seconds"
+              },
+              "idleTimeout": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Delay closing idle connection in seconds"
+              },
+              "replaceEmptyStringsWithNull": {
+                "type": "boolean",
+                "default": false,
+                "description": "Replace empty string values with NULL"
+              },
+              "outputLargeNumbersAsText": {
+                "type": "boolean",
+                "default": false,
+                "description": "Output BIGINT/NUMERIC as text"
+              },
+              "returnAll": {
+                "type": "boolean",
+                "default": true,
+                "description": "Return all rows or limited"
+              },
+              "limit": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "default": 50,
+                "description": "Limit number of rows"
+              },
+              "conditions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "column": {
+                      "type": "string"
+                    },
+                    "operator": {
+                      "type": "string",
+                      "enum": [
+                        "=",
+                        "!=",
+                        "LIKE",
+                        ">",
+                        "<",
+                        ">=",
+                        "<=",
+                        "IS NULL",
+                        "IS NOT NULL"
+                      ]
+                    },
+                    "value": {}
+                  },
+                  "required": [
+                    "column",
+                    "operator"
+                  ],
+                  "additionalProperties": false
+                },
+                "default": [],
+                "description": "WHERE conditions"
+              },
+              "combineConditions": {
+                "type": "string",
+                "enum": [
+                  "AND",
+                  "OR"
+                ],
+                "default": "AND"
+              },
+              "sorts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "column": {
+                      "type": "string"
+                    },
+                    "direction": {
+                      "type": "string",
+                      "enum": [
+                        "ASC",
+                        "DESC"
+                      ],
+                      "default": "ASC"
+                    }
+                  },
+                  "required": [
+                    "column"
+                  ],
+                  "additionalProperties": false
+                },
+                "default": [],
+                "description": "ORDER BY clauses"
+              },
+              "outputColumns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [
+                  "*"
+                ],
+                "description": "Columns to return"
+              }
+            },
+            "required": [
+              "credentialId",
+              "table"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "executionMode": "batch"
+        },
+        "isTrigger": false,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "width": 280,
+      "height": 120,
+      "position": {
+        "x": 400,
+        "y": 300
+      },
+      "positionAbsolute": {
+        "x": 400,
+        "y": 300
+      },
+      "type": "action"
+    },
+    {
+      "id": "code-wa-formatter-03",
+      "data": {
+        "label": "Construct WhatsApp Card & Audio Link",
+        "inputs": {
+          "language": "javascript",
+          "mode": "all",
+          "code": "const req = $node[\"webhook-wa-01\"].json.body || {};\nconst record = $node[\"postgres-fetch-02\"].json || {};\n\nconst patientName = req.patientName || record.patientName || 'Patient';\nconst phone = req.recipientPhoneNumber || req.phone || '+918903643218';\nconst lang = req.language || record.language || 'Tamil';\n\nconst textMessage = `🏥 *St. Jude Memorial Hospital - Official Discharge Care Plan*\n------------------------------------------------\nHello *${patientName}*, here is your personalized recovery and medication guide in *${lang}*.\n\n🩺 *Diagnosis / நிலை:*\n${record.diagnoses || 'பொது மருத்துவ மீட்பு மற்றும் அவதானிப்பு'}\n\n💊 *Prescribed Medications / பரிந்துரைக்கப்பட்ட மருந்துகள்:*\n• Post-Discharge Recovery Regimen - தினமும் உணவுக்குப் பிறகு (7 நாட்கள்)\nஉணவுக்குப் பிறகு தண்ணீருடன் பரிந்துரைக்கப்பட்ட அளவை உட்கொள்ளவும்.\n\n🥗 *Dietary Care / உணவு முறை:*\n• நீரேற்றம், ஊட்டச்சத்து நிறைந்த சீரான உணவு\n• காரமான அல்லது எண்ணெய் நிறைந்த உணவுகளைத் தவிர்க்கவும்\n\n⚠️ *Emergency Signs / எச்சரிக்கை அறிகுறிகள்:*\nகாய்ச்சல், மூச்சுத் திணறல் அல்லது அசாதாரண வலி ஏற்பட்டால் உடனடியாக +1 (800) 555-0199 என்ற எண்ணை அழைக்கவும்.\n\n🎙️ *Audio Voice Note Link:*\nListen in ${lang}: https://care.stjudehospital.org/audio/${record.mrn || 'P1008'}`;\n\nreturn [{\n  recipient: phone,\n  patientName: patientName,\n  whatsappBody: textMessage,\n  audioUrl: `https://care.stjudehospital.org/audio/${record.mrn || 'P1008'}.mp3`,\n  mrn: record.mrn || req.mrn || 'MRN-P1008',\n  channel: req.channel || 'fullPacket'\n}];"
+        },
+        "toolId": "code.execute",
+        "toolData": {
+          "id": "code.execute",
+          "displayName": "Code",
+          "category": "Data  Processing",
+          "provider": "code",
+          "operation": "execute",
+          "icon": "💻",
+          "description": "Execute custom JavaScript or Python code",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "language": {
+                "type": "string",
+                "enum": [
+                  "javascript",
+                  "python"
+                ],
+                "description": "Programming language to execute"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "all",
+                  "each"
+                ],
+                "default": "all",
+                "description": "Execution mode"
+              },
+              "code": {
+                "type": "string",
+                "description": "Code to execute"
+              },
+              "input": {
+                "description": "Input data available as \"input\" variable"
+              },
+              "context": {
+                "description": "Execution context including other node results"
+              }
+            },
+            "required": [
+              "language",
+              "code"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        "isTrigger": false,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "width": 280,
+      "height": 120,
+      "position": {
+        "x": 750,
+        "y": 300
+      },
+      "positionAbsolute": {
+        "x": 750,
+        "y": 300
+      },
+      "type": "action"
+    },
+    {
+      "id": "wa-send-text-04",
+      "data": {
+        "label": "Send WhatsApp Text Care Packet",
+        "inputs": {
+          "senderPhoneNumber": "+14155238886",
+          "recipientPhoneNumber": "{{ $node[\"code-wa-formatter-03\"].json.recipient }}",
+          "messageType": "text",
+          "textBody": "{{ $node[\"code-wa-formatter-03\"].json.whatsappBody }}"
+        },
+        "toolId": "whatsapp.message.send",
+        "toolData": {
+          "id": "whatsapp.message.send",
+          "displayName": "Send Message",
+          "category": "Integrations",
+          "provider": "whatsapp",
+          "operation": "send",
+          "icon": "/tools/whatsapp.png",
+          "description": "Send a text or media message",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "credentialId": {
+                "type": "string"
+              },
+              "senderPhoneNumber": {
+                "type": "string"
+              },
+              "recipientPhoneNumber": {
+                "type": "string"
+              },
+              "messageType": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "image",
+                  "video",
+                  "audio",
+                  "document",
+                  "location",
+                  "contacts"
+                ]
+              },
+              "textBody": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "credentialId",
+              "senderPhoneNumber",
+              "recipientPhoneNumber",
+              "messageType"
+            ],
+            "additionalProperties": {},
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "fields": [
+            {
+              "name": "senderPhoneNumber",
+              "displayName": "Sender Phone Number (or ID)",
+              "type": "options",
+              "description": "The phone number or ID of the sender. Usually your WhatsApp Business phone number ID.",
+              "placeholder": "Select a phone number...",
+              "required": true,
+              "fetchEndpoint": "/api/tools/whatsapp/list-phone-numbers",
+              "dependsOn": [
+                "credentials"
+              ],
+              "labelKey": "name",
+              "valueKey": "value"
+            },
+            {
+              "name": "recipientPhoneNumber",
+              "displayName": "Recipient's Phone Number",
+              "type": "string",
+              "required": true,
+              "placeholder": "+91 **********",
+              "description": "When entering a phone number, make sure to include the country code"
+            },
+            {
+              "name": "messageType",
+              "displayName": "MessageType",
+              "type": "options",
+              "required": true,
+              "default": "text",
+              "options": [
+                {
+                  "name": "Text",
+                  "value": "text"
+                },
+                {
+                  "name": "Image",
+                  "value": "image"
+                },
+                {
+                  "name": "Video",
+                  "value": "video"
+                },
+                {
+                  "name": "Audio",
+                  "value": "audio"
+                },
+                {
+                  "name": "Document",
+                  "value": "document"
+                },
+                {
+                  "name": "Location",
+                  "value": "location"
+                },
+                {
+                  "name": "Contacts",
+                  "value": "contacts"
+                }
+              ]
+            },
+            {
+              "name": "textBody",
+              "displayName": "Text Body",
+              "type": "textarea",
+              "required": true,
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "text"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "sourceType",
+              "displayName": "Take Media From",
+              "type": "options",
+              "required": true,
+              "default": "link",
+              "options": [
+                {
+                  "name": "Link",
+                  "value": "link"
+                },
+                {
+                  "name": "WhatsApp Media",
+                  "value": "id"
+                }
+              ],
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "image",
+                    "video",
+                    "audio",
+                    "document"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "link",
+              "displayName": "Link",
+              "type": "string",
+              "required": true,
+              "placeholder": "https://example.com/media.file",
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "image",
+                    "video",
+                    "audio",
+                    "document"
+                  ],
+                  "sourceType": [
+                    "link"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "mediaId",
+              "displayName": "ID",
+              "type": "string",
+              "required": true,
+              "placeholder": "Media ID from WhatsApp",
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "image",
+                    "video",
+                    "audio",
+                    "document"
+                  ],
+                  "sourceType": [
+                    "id"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "filename",
+              "displayName": "Filename",
+              "type": "string",
+              "required": false,
+              "placeholder": "filename.pdf",
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "document"
+                  ],
+                  "sourceType": [
+                    "id"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "name",
+              "displayName": "Name",
+              "type": "array",
+              "maxItems": 1,
+              "placeholder": "Add Parameter",
+              "default": [],
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "contacts"
+                  ]
+                }
+              },
+              "fields": [
+                {
+                  "name": "formattedName",
+                  "displayName": "Formatted Name",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "firstName",
+                  "displayName": "First Name",
+                  "type": "string"
+                },
+                {
+                  "name": "lastName",
+                  "displayName": "Last Name",
+                  "type": "string"
+                },
+                {
+                  "name": "middleName",
+                  "displayName": "Middle Name",
+                  "type": "string"
+                },
+                {
+                  "name": "suffix",
+                  "displayName": "Suffix",
+                  "type": "string"
+                },
+                {
+                  "name": "prefix",
+                  "displayName": "Prefix",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "name": "longitude",
+              "displayName": "Longitude",
+              "type": "number",
+              "required": true,
+              "default": 0,
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "location"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "latitude",
+              "displayName": "Latitude",
+              "type": "number",
+              "required": true,
+              "default": 0,
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "location"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "additionalFields",
+              "displayName": "Additional Fields",
+              "type": "collection",
+              "placeholder": "Add Field",
+              "default": {},
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "text",
+                    "image",
+                    "video",
+                    "audio",
+                    "document",
+                    "location",
+                    "contacts"
+                  ]
+                }
+              },
+              "fields": [
+                {
+                  "name": "showUrlPreviews",
+                  "displayName": "Show URL Previews",
+                  "type": "toggle",
+                  "default": false,
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "text"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "caption",
+                  "displayName": "Caption",
+                  "type": "textarea",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "image",
+                        "video",
+                        "audio",
+                        "document"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "filename",
+                  "displayName": "Filename",
+                  "type": "string",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "document"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "locationName",
+                  "displayName": "Name",
+                  "type": "string",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "location"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "locationAddress",
+                  "displayName": "Address",
+                  "type": "string",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "location"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "addresses",
+                  "displayName": "Addresses",
+                  "type": "array",
+                  "placeholder": "Add Parameter",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "contacts"
+                      ]
+                    }
+                  },
+                  "fields": [
+                    {
+                      "name": "type",
+                      "displayName": "Type",
+                      "type": "options",
+                      "options": [
+                        {
+                          "name": "Home",
+                          "value": "HOME"
+                        },
+                        {
+                          "name": "Work",
+                          "value": "WORK"
+                        }
+                      ],
+                      "default": "HOME"
+                    },
+                    {
+                      "name": "street",
+                      "displayName": "Street",
+                      "type": "string"
+                    },
+                    {
+                      "name": "city",
+                      "displayName": "City",
+                      "type": "string"
+                    },
+                    {
+                      "name": "state",
+                      "displayName": "State",
+                      "type": "string"
+                    },
+                    {
+                      "name": "zip",
+                      "displayName": "Zip",
+                      "type": "string"
+                    },
+                    {
+                      "name": "country",
+                      "displayName": "Country",
+                      "type": "string"
+                    },
+                    {
+                      "name": "countryCode",
+                      "displayName": "Country Code",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "name": "birthday",
+                  "displayName": "Birthday",
+                  "type": "string",
+                  "placeholder": "YYYY-MM-DD",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "contacts"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "emails",
+                  "displayName": "Emails",
+                  "type": "array",
+                  "placeholder": "Add Parameter",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "contacts"
+                      ]
+                    }
+                  },
+                  "fields": [
+                    {
+                      "name": "type",
+                      "displayName": "Type",
+                      "type": "options",
+                      "options": [
+                        {
+                          "name": "Home",
+                          "value": "HOME"
+                        },
+                        {
+                          "name": "Work",
+                          "value": "WORK"
+                        }
+                      ],
+                      "default": "HOME"
+                    },
+                    {
+                      "name": "email",
+                      "displayName": "Email",
+                      "type": "string",
+                      "placeholder": "name@email.com"
+                    }
+                  ]
+                },
+                {
+                  "name": "org",
+                  "displayName": "Organization",
+                  "type": "array",
+                  "maxItems": 1,
+                  "placeholder": "Add Parameter",
+                  "default": [],
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "contacts"
+                      ]
+                    }
+                  },
+                  "fields": [
+                    {
+                      "name": "company",
+                      "displayName": "Company",
+                      "type": "string"
+                    },
+                    {
+                      "name": "department",
+                      "displayName": "Department",
+                      "type": "string"
+                    },
+                    {
+                      "name": "title",
+                      "displayName": "Title",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "name": "phones",
+                  "displayName": "Phones",
+                  "type": "array",
+                  "placeholder": "Add Parameter",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "contacts"
+                      ]
+                    }
+                  },
+                  "fields": [
+                    {
+                      "name": "type",
+                      "displayName": "Type",
+                      "type": "options",
+                      "options": [
+                        {
+                          "name": "Cell",
+                          "value": "CELL"
+                        },
+                        {
+                          "name": "Home",
+                          "value": "HOME"
+                        },
+                        {
+                          "name": "Iphone",
+                          "value": "IPHONE"
+                        },
+                        {
+                          "name": "Main",
+                          "value": "MAIN"
+                        },
+                        {
+                          "name": "Work",
+                          "value": "WORK"
+                        }
+                      ],
+                      "default": "CELL"
+                    },
+                    {
+                      "name": "phone",
+                      "displayName": "Phone",
+                      "type": "string"
+                    },
+                    {
+                      "name": "waId",
+                      "displayName": "WhatsApp User ID",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "name": "urls",
+                  "displayName": "URLs",
+                  "type": "array",
+                  "placeholder": "Add Parameter",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "contacts"
+                      ]
+                    }
+                  },
+                  "fields": [
+                    {
+                      "name": "type",
+                      "displayName": "Type",
+                      "type": "options",
+                      "options": [
+                        {
+                          "name": "Home",
+                          "value": "HOME"
+                        },
+                        {
+                          "name": "Work",
+                          "value": "WORK"
+                        }
+                      ],
+                      "default": "HOME"
+                    },
+                    {
+                      "name": "url",
+                      "displayName": "URL",
+                      "type": "string"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "initialData": {
+            "resource": "message",
+            "operation": "send"
+          },
+          "subCategory": "MESSAGE ACTIONS",
+          "featured": true
+        },
+        "isTrigger": false,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "width": 280,
+      "height": 120,
+      "position": {
+        "x": 1100,
+        "y": 200
+      },
+      "positionAbsolute": {
+        "x": 1100,
+        "y": 200
+      },
+      "type": "action"
+    },
+    {
+      "id": "wa-send-audio-05",
+      "data": {
+        "label": "Send WhatsApp Native Audio Memo",
+        "inputs": {
+          "senderPhoneNumber": "+14155238886",
+          "recipientPhoneNumber": "{{ $node[\"code-wa-formatter-03\"].json.recipient }}",
+          "messageType": "audio",
+          "textBody": "{{ $node[\"code-wa-formatter-03\"].json.audioUrl }}"
+        },
+        "toolId": "whatsapp.message.send",
+        "toolData": {
+          "id": "whatsapp.message.send",
+          "displayName": "Send Message",
+          "category": "Integrations",
+          "provider": "whatsapp",
+          "operation": "send",
+          "icon": "/tools/whatsapp.png",
+          "description": "Send a text or media message",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "credentialId": {
+                "type": "string"
+              },
+              "senderPhoneNumber": {
+                "type": "string"
+              },
+              "recipientPhoneNumber": {
+                "type": "string"
+              },
+              "messageType": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "image",
+                  "video",
+                  "audio",
+                  "document",
+                  "location",
+                  "contacts"
+                ]
+              },
+              "textBody": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "credentialId",
+              "senderPhoneNumber",
+              "recipientPhoneNumber",
+              "messageType"
+            ],
+            "additionalProperties": {},
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "fields": [
+            {
+              "name": "senderPhoneNumber",
+              "displayName": "Sender Phone Number (or ID)",
+              "type": "options",
+              "description": "The phone number or ID of the sender. Usually your WhatsApp Business phone number ID.",
+              "placeholder": "Select a phone number...",
+              "required": true,
+              "fetchEndpoint": "/api/tools/whatsapp/list-phone-numbers",
+              "dependsOn": [
+                "credentials"
+              ],
+              "labelKey": "name",
+              "valueKey": "value"
+            },
+            {
+              "name": "recipientPhoneNumber",
+              "displayName": "Recipient's Phone Number",
+              "type": "string",
+              "required": true,
+              "placeholder": "+91 **********",
+              "description": "When entering a phone number, make sure to include the country code"
+            },
+            {
+              "name": "messageType",
+              "displayName": "MessageType",
+              "type": "options",
+              "required": true,
+              "default": "text",
+              "options": [
+                {
+                  "name": "Text",
+                  "value": "text"
+                },
+                {
+                  "name": "Image",
+                  "value": "image"
+                },
+                {
+                  "name": "Video",
+                  "value": "video"
+                },
+                {
+                  "name": "Audio",
+                  "value": "audio"
+                },
+                {
+                  "name": "Document",
+                  "value": "document"
+                },
+                {
+                  "name": "Location",
+                  "value": "location"
+                },
+                {
+                  "name": "Contacts",
+                  "value": "contacts"
+                }
+              ]
+            },
+            {
+              "name": "textBody",
+              "displayName": "Text Body",
+              "type": "textarea",
+              "required": true,
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "text"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "sourceType",
+              "displayName": "Take Media From",
+              "type": "options",
+              "required": true,
+              "default": "link",
+              "options": [
+                {
+                  "name": "Link",
+                  "value": "link"
+                },
+                {
+                  "name": "WhatsApp Media",
+                  "value": "id"
+                }
+              ],
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "image",
+                    "video",
+                    "audio",
+                    "document"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "link",
+              "displayName": "Link",
+              "type": "string",
+              "required": true,
+              "placeholder": "https://example.com/media.file",
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "image",
+                    "video",
+                    "audio",
+                    "document"
+                  ],
+                  "sourceType": [
+                    "link"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "mediaId",
+              "displayName": "ID",
+              "type": "string",
+              "required": true,
+              "placeholder": "Media ID from WhatsApp",
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "image",
+                    "video",
+                    "audio",
+                    "document"
+                  ],
+                  "sourceType": [
+                    "id"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "filename",
+              "displayName": "Filename",
+              "type": "string",
+              "required": false,
+              "placeholder": "filename.pdf",
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "document"
+                  ],
+                  "sourceType": [
+                    "id"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "name",
+              "displayName": "Name",
+              "type": "array",
+              "maxItems": 1,
+              "placeholder": "Add Parameter",
+              "default": [],
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "contacts"
+                  ]
+                }
+              },
+              "fields": [
+                {
+                  "name": "formattedName",
+                  "displayName": "Formatted Name",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "firstName",
+                  "displayName": "First Name",
+                  "type": "string"
+                },
+                {
+                  "name": "lastName",
+                  "displayName": "Last Name",
+                  "type": "string"
+                },
+                {
+                  "name": "middleName",
+                  "displayName": "Middle Name",
+                  "type": "string"
+                },
+                {
+                  "name": "suffix",
+                  "displayName": "Suffix",
+                  "type": "string"
+                },
+                {
+                  "name": "prefix",
+                  "displayName": "Prefix",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "name": "longitude",
+              "displayName": "Longitude",
+              "type": "number",
+              "required": true,
+              "default": 0,
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "location"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "latitude",
+              "displayName": "Latitude",
+              "type": "number",
+              "required": true,
+              "default": 0,
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "location"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "additionalFields",
+              "displayName": "Additional Fields",
+              "type": "collection",
+              "placeholder": "Add Field",
+              "default": {},
+              "displayOptions": {
+                "show": {
+                  "messageType": [
+                    "text",
+                    "image",
+                    "video",
+                    "audio",
+                    "document",
+                    "location",
+                    "contacts"
+                  ]
+                }
+              },
+              "fields": [
+                {
+                  "name": "showUrlPreviews",
+                  "displayName": "Show URL Previews",
+                  "type": "toggle",
+                  "default": false,
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "text"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "caption",
+                  "displayName": "Caption",
+                  "type": "textarea",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "image",
+                        "video",
+                        "audio",
+                        "document"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "filename",
+                  "displayName": "Filename",
+                  "type": "string",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "document"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "locationName",
+                  "displayName": "Name",
+                  "type": "string",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "location"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "locationAddress",
+                  "displayName": "Address",
+                  "type": "string",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "location"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "addresses",
+                  "displayName": "Addresses",
+                  "type": "array",
+                  "placeholder": "Add Parameter",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "contacts"
+                      ]
+                    }
+                  },
+                  "fields": [
+                    {
+                      "name": "type",
+                      "displayName": "Type",
+                      "type": "options",
+                      "options": [
+                        {
+                          "name": "Home",
+                          "value": "HOME"
+                        },
+                        {
+                          "name": "Work",
+                          "value": "WORK"
+                        }
+                      ],
+                      "default": "HOME"
+                    },
+                    {
+                      "name": "street",
+                      "displayName": "Street",
+                      "type": "string"
+                    },
+                    {
+                      "name": "city",
+                      "displayName": "City",
+                      "type": "string"
+                    },
+                    {
+                      "name": "state",
+                      "displayName": "State",
+                      "type": "string"
+                    },
+                    {
+                      "name": "zip",
+                      "displayName": "Zip",
+                      "type": "string"
+                    },
+                    {
+                      "name": "country",
+                      "displayName": "Country",
+                      "type": "string"
+                    },
+                    {
+                      "name": "countryCode",
+                      "displayName": "Country Code",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "name": "birthday",
+                  "displayName": "Birthday",
+                  "type": "string",
+                  "placeholder": "YYYY-MM-DD",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "contacts"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "emails",
+                  "displayName": "Emails",
+                  "type": "array",
+                  "placeholder": "Add Parameter",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "contacts"
+                      ]
+                    }
+                  },
+                  "fields": [
+                    {
+                      "name": "type",
+                      "displayName": "Type",
+                      "type": "options",
+                      "options": [
+                        {
+                          "name": "Home",
+                          "value": "HOME"
+                        },
+                        {
+                          "name": "Work",
+                          "value": "WORK"
+                        }
+                      ],
+                      "default": "HOME"
+                    },
+                    {
+                      "name": "email",
+                      "displayName": "Email",
+                      "type": "string",
+                      "placeholder": "name@email.com"
+                    }
+                  ]
+                },
+                {
+                  "name": "org",
+                  "displayName": "Organization",
+                  "type": "array",
+                  "maxItems": 1,
+                  "placeholder": "Add Parameter",
+                  "default": [],
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "contacts"
+                      ]
+                    }
+                  },
+                  "fields": [
+                    {
+                      "name": "company",
+                      "displayName": "Company",
+                      "type": "string"
+                    },
+                    {
+                      "name": "department",
+                      "displayName": "Department",
+                      "type": "string"
+                    },
+                    {
+                      "name": "title",
+                      "displayName": "Title",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "name": "phones",
+                  "displayName": "Phones",
+                  "type": "array",
+                  "placeholder": "Add Parameter",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "contacts"
+                      ]
+                    }
+                  },
+                  "fields": [
+                    {
+                      "name": "type",
+                      "displayName": "Type",
+                      "type": "options",
+                      "options": [
+                        {
+                          "name": "Cell",
+                          "value": "CELL"
+                        },
+                        {
+                          "name": "Home",
+                          "value": "HOME"
+                        },
+                        {
+                          "name": "Iphone",
+                          "value": "IPHONE"
+                        },
+                        {
+                          "name": "Main",
+                          "value": "MAIN"
+                        },
+                        {
+                          "name": "Work",
+                          "value": "WORK"
+                        }
+                      ],
+                      "default": "CELL"
+                    },
+                    {
+                      "name": "phone",
+                      "displayName": "Phone",
+                      "type": "string"
+                    },
+                    {
+                      "name": "waId",
+                      "displayName": "WhatsApp User ID",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "name": "urls",
+                  "displayName": "URLs",
+                  "type": "array",
+                  "placeholder": "Add Parameter",
+                  "displayOptions": {
+                    "show": {
+                      "/messageType": [
+                        "contacts"
+                      ]
+                    }
+                  },
+                  "fields": [
+                    {
+                      "name": "type",
+                      "displayName": "Type",
+                      "type": "options",
+                      "options": [
+                        {
+                          "name": "Home",
+                          "value": "HOME"
+                        },
+                        {
+                          "name": "Work",
+                          "value": "WORK"
+                        }
+                      ],
+                      "default": "HOME"
+                    },
+                    {
+                      "name": "url",
+                      "displayName": "URL",
+                      "type": "string"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "initialData": {
+            "resource": "message",
+            "operation": "send"
+          },
+          "subCategory": "MESSAGE ACTIONS",
+          "featured": true
+        },
+        "isTrigger": false,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "width": 280,
+      "height": 120,
+      "position": {
+        "x": 1100,
+        "y": 400
+      },
+      "positionAbsolute": {
+        "x": 1100,
+        "y": 400
+      },
+      "type": "action"
+    },
+    {
+      "id": "postgres-update-status-06",
+      "data": {
+        "label": "Update Patient Delivery Status",
+        "inputs": {
+          "schema": "public",
+          "table": "patients",
+          "conditions": [
+            {
+              "field": "mrn",
+              "operator": "equal",
+              "value": "{{ $node[\"code-wa-formatter-03\"].json.mrn }}"
+            }
+          ]
+        },
+        "toolId": "postgres.update",
+        "toolData": {
+          "id": "postgres.update",
+          "displayName": "Update Rows",
+          "category": "Memory & State",
+          "provider": "postgres",
+          "operation": "update",
+          "icon": "Database",
+          "description": "Update existing rows in a PostgreSQL table",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "credentialId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "schemaMode": {
+                "type": "string",
+                "enum": [
+                  "list",
+                  "name"
+                ],
+                "default": "list"
+              },
+              "schema": {
+                "type": "string",
+                "minLength": 1,
+                "default": "public"
+              },
+              "tableMode": {
+                "type": "string",
+                "enum": [
+                  "list",
+                  "name"
+                ],
+                "default": "list"
+              },
+              "table": {
+                "type": "string",
+                "minLength": 1
+              },
+              "queryBatching": {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "independently",
+                  "transaction"
+                ],
+                "default": "single",
+                "description": "Query Batching"
+              },
+              "queryTimeout": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Connection timeout in seconds"
+              },
+              "idleTimeout": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Delay closing idle connection in seconds"
+              },
+              "replaceEmptyStringsWithNull": {
+                "type": "boolean",
+                "default": false,
+                "description": "Replace empty string values with NULL"
+              },
+              "outputLargeNumbersAsText": {
+                "type": "boolean",
+                "default": false,
+                "description": "Output BIGINT/NUMERIC as text"
+              },
+              "columnsMode": {
+                "type": "string",
+                "enum": [
+                  "manually",
+                  "automatically"
+                ],
+                "default": "manually"
+              },
+              "columns": {
+                "type": "object",
+                "additionalProperties": {},
+                "default": {},
+                "description": "Columns and values to update"
+              },
+              "matchColumns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Columns to use for matching/WHERE clause"
+              },
+              "conditions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "column": {
+                      "type": "string"
+                    },
+                    "operator": {
+                      "type": "string",
+                      "enum": [
+                        "=",
+                        "!=",
+                        "LIKE",
+                        ">",
+                        "<",
+                        ">=",
+                        "<=",
+                        "IS NULL",
+                        "IS NOT NULL"
+                      ]
+                    },
+                    "value": {}
+                  },
+                  "required": [
+                    "column",
+                    "operator"
+                  ],
+                  "additionalProperties": false
+                },
+                "default": [],
+                "description": "WHERE conditions"
+              },
+              "combineConditions": {
+                "type": "string",
+                "enum": [
+                  "AND",
+                  "OR"
+                ],
+                "default": "AND"
+              },
+              "outputColumns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [
+                  "*"
+                ],
+                "description": "Columns to return after update"
+              }
+            },
+            "required": [
+              "credentialId",
+              "table"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "executionMode": "batch"
+        },
+        "isTrigger": false,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "width": 280,
+      "height": 120,
+      "position": {
+        "x": 1450,
+        "y": 300
+      },
+      "positionAbsolute": {
+        "x": 1450,
+        "y": 300
+      },
+      "type": "action"
+    },
+    {
+      "id": "response-wa-07",
+      "data": {
+        "label": "Return WhatsApp Dispatch Confirmation",
+        "inputs": {
+          "responseCode": 200,
+          "options": {
+            "responseData": "JSON"
+          }
+        },
+        "toolId": "respondToWebhook",
+        "toolData": {
+          "id": "respondToWebhook",
+          "displayName": "Webhook Response",
+          "category": "Input /  Output",
+          "icon": "reply",
+          "description": "Send response to webhook",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "respondWith": {
+                "type": "string",
+                "enum": [
+                  "All Incoming Items",
+                  "First Incoming Item",
+                  "JSON",
+                  "Binary File",
+                  "JWT Token",
+                  "Text",
+                  "Redirect",
+                  "No Data"
+                ],
+                "default": "All Incoming Items",
+                "description": "What to respond with."
+              },
+              "responseBody": {
+                "type": "string",
+                "description": "The body of the response (can be an expression)"
+              },
+              "credentialId": {
+                "type": "string",
+                "description": "JWT credential ID"
+              },
+              "payload": {
+                "type": "string",
+                "description": "JWT Token Payload (JSON string or expression)"
+              },
+              "redirectUrl": {
+                "type": "string",
+                "description": "Redirect URL"
+              },
+              "inputFieldName": {
+                "type": "string",
+                "default": "data",
+                "description": "Input Field Name containing the binary file"
+              },
+              "responseCode": {
+                "type": "number",
+                "description": "HTTP Response Code"
+              },
+              "putResponseInField": {
+                "type": "string",
+                "description": "If set, put the response into this field instead of the default output"
+              },
+              "enableStreaming": {
+                "type": "boolean",
+                "description": "Stream the response back to the caller when supported"
+              },
+              "options": {
+                "type": "object",
+                "properties": {
+                  "headers": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        "isTrigger": false,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "width": 280,
+      "height": 120,
+      "position": {
+        "x": 1800,
+        "y": 300
+      },
+      "positionAbsolute": {
+        "x": 1800,
+        "y": 300
+      },
+      "type": "action"
+    }
+  ],
+  "edges": [
+    {
+      "id": "reactflow__edge-webhook-wa-01-postgres-fetch-02",
+      "data": {},
+      "type": "custom",
+      "source": "webhook-wa-01",
+      "target": "postgres-fetch-02"
+    },
+    {
+      "id": "reactflow__edge-postgres-fetch-02-code-wa-formatter-03",
+      "data": {},
+      "type": "custom",
+      "source": "postgres-fetch-02",
+      "target": "code-wa-formatter-03"
+    },
+    {
+      "id": "reactflow__edge-code-wa-formatter-03-wa-send-text-04",
+      "data": {},
+      "type": "custom",
+      "source": "code-wa-formatter-03",
+      "target": "wa-send-text-04"
+    },
+    {
+      "id": "reactflow__edge-code-wa-formatter-03-wa-send-audio-05",
+      "data": {},
+      "type": "custom",
+      "source": "code-wa-formatter-03",
+      "target": "wa-send-audio-05"
+    },
+    {
+      "id": "reactflow__edge-wa-send-text-04-postgres-update-status-06",
+      "data": {},
+      "type": "custom",
+      "source": "wa-send-text-04",
+      "target": "postgres-update-status-06"
+    },
+    {
+      "id": "reactflow__edge-wa-send-audio-05-postgres-update-status-06",
+      "data": {},
+      "type": "custom",
+      "source": "wa-send-audio-05",
+      "target": "postgres-update-status-06"
+    },
+    {
+      "id": "reactflow__edge-postgres-update-status-06-response-wa-07",
+      "data": {},
+      "type": "custom",
+      "source": "postgres-update-status-06",
+      "target": "response-wa-07"
+    }
+  ]
+}
