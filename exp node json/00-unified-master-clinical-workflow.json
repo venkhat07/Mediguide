@@ -1,7 +1,7 @@
 {
   "_platform": "agentbuilder",
   "_version": 1,
-  "_exportedAt": "2026-09-17T17:58:40.152Z",
+  "_exportedAt": "2026-09-17T18:25:53.193Z",
   "_fingerprint": "YWN0aW9uOmNvZGUuZXhlY3V0ZXxhY3Rpb246Y29kZS5leGVjdXRlfGFjdGlvbjpj",
   "nodes": [
     {
@@ -943,7 +943,7 @@
           "model": "gemini-2.5-flash",
           "resource": "Text",
           "operation": "Message a Model",
-          "prompt": "You are the MediGuide AI Clinical Reasoning & Simplification Engine.\nInput clinical notes: {{ JSON.stringify($node[\"extractor-entities-03\"].json) }}\nTarget Language: {{ $node[\"webhook-discharge-01\"].json.body.language || 'Tamil' }}\n\nTasks:\n1. Simplify medical jargon to a clear, patient-centric 6th-grade reading level.\n2. Cross-reference prescribed medications to verify dosages, timing (Morning, Afternoon, Night), and food instructions (before/after meals).\n3. Translate all guidance (Diagnosis, Medication Regimen, Dietary Rules, Physical Activity, Follow-up) into the target language.\n4. Generate a WhatsApp formatted message template with emojis (🩺, 💊, 🥗, ⚠️, 📅).\n5. Generate an empathetic, clear audio narration script in the native language for Text-to-Speech audio dispatch.\n\nOutput structured JSON matching:\n{\n  \"simplifiedDiagnosis\": string,\n  \"medicationList\": [{\"name\": string, \"dosage\": string, \"frequency\": string, \"duration\": string, \"foodTiming\": string, \"instructions\": string}],\n  \"dietaryRules\": [string],\n  \"activityRestrictions\": [string],\n  \"followUp\": [string],\n  \"emergencySigns\": [string],\n  \"whatsappText\": string,\n  \"voiceNoteScript\": string\n}"
+          "prompt": "You are the MediGuide AI Clinical Reasoning & Simplification Engine.\nInput clinical notes: {{ JSON.stringify($node[\"b0-extractor-entities-03\"].json) }}\nTarget Language: {{ $node[\"webhook-master-01\"].json.body.language || 'Tamil' }}\n\nTasks:\n1. Simplify medical jargon to a clear, patient-centric 6th-grade reading level.\n2. Cross-reference prescribed medications to verify dosages, timing (Morning, Afternoon, Night), and food instructions (before/after meals).\n3. Translate all guidance (Diagnosis, Medication Regimen, Dietary Rules, Physical Activity, Follow-up) into the target language.\n4. Generate a WhatsApp formatted message template with emojis (🩺, 💊, 🥗, ⚠️, 📅).\n5. Generate an empathetic, clear audio narration script in the native language for Text-to-Speech audio dispatch.\n\nOutput structured JSON matching:\n{\n  \"simplifiedDiagnosis\": string,\n  \"medicationList\": [{\"name\": string, \"dosage\": string, \"frequency\": string, \"duration\": string, \"foodTiming\": string, \"instructions\": string}],\n  \"dietaryRules\": [string],\n  \"activityRestrictions\": [string],\n  \"followUp\": [string],\n  \"emergencySigns\": [string],\n  \"whatsappText\": string,\n  \"voiceNoteScript\": string\n}"
         },
         "toolId": "gemini",
         "toolData": {
@@ -2010,7 +2010,7 @@
         "inputs": {
           "language": "javascript",
           "mode": "all",
-          "code": "const rawAi = $node[\"gemini-simplifier-05\"].json;\nconst extracted = $node[\"extractor-entities-03\"].json;\nconst reqBody = $node[\"webhook-discharge-01\"].json.body || {};\n\nlet parsedAi = {};\ntry {\n  parsedAi = typeof rawAi === 'string' ? JSON.parse(rawAi) : (rawAi.response ? JSON.parse(rawAi.response) : rawAi);\n} catch(e) {\n  parsedAi = rawAi;\n}\n\nreturn [{\n  success: true,\n  patient: {\n    id: reqBody.patientId || 'P1008',\n    name: extracted.patientName || reqBody.patientName || 'Patient',\n    mrn: extracted.mrn || reqBody.mrn || 'MRN-P1008',\n    phone: reqBody.phone || '+91 89036 43218',\n    language: reqBody.language || 'Tamil',\n    dischargeDate: extracted.dischargeDate || new Date().toLocaleDateString('en-GB')\n  },\n  diagnoses: parsedAi.simplifiedDiagnosis || extracted.diagnoses || 'பொது மருத்துவ மீட்பு மற்றும் அவதானிப்பு',\n  medications: parsedAi.medicationList || [\n    {\n      name: 'Post-Discharge Recovery Regimen',\n      dosage: 'As directed',\n      frequency: 'தினமும் உணவுக்குப் பிறகு',\n      duration: '7 நாட்கள்',\n      foodTiming: 'உணவுக்குப் பிறகு',\n      instructions: 'உணவுக்குப் பிறகு தண்ணீருடன் பரிந்துரைக்கப்பட்ட அளவை எடுத்துக் கொள்ளவும்.'\n    }\n  ],\n  dietaryGuidelines: parsedAi.dietaryRules || [\n    'நீரேற்றம், ஊட்டச்சத்து நிறைந்த சீரான உணவு',\n    'காரமான அல்லது எண்ணெய் நிறைந்த உணவுகளைத் தவிர்க்கவும்'\n  ],\n  activityRestrictions: parsedAi.activityRestrictions || [\n    '3 முதல் 5 நாட்களுக்கு போதுமான ஓய்வு',\n    'கடுமையான உடல் செயல்பாடுகளைத் தவிர்க்கவும்'\n  ],\n  followUp: parsedAi.followUp || [\n    'வெளிநோயாளர் கிளினிக்கில் 10 நாட்களில் வழக்கமான பின்தொடர்தல்'\n  ],\n  whatsappPreview: parsedAi.whatsappText || '',\n  voiceScript: parsedAi.voiceNoteScript || '',\n  processedAt: new Date().toISOString()\n}];"
+          "code": "const rawAi = $node[\"b0-gemini-simplifier-05\"].json;\nconst extracted = $node[\"b0-extractor-entities-03\"].json || {};\nconst reqBody = $node[\"webhook-master-01\"].json?.body || {};\n\nlet parsedAi = {};\ntry {\n  parsedAi = typeof rawAi === 'string' ? JSON.parse(rawAi) : (rawAi.response ? JSON.parse(rawAi.response) : rawAi);\n} catch(e) {\n  parsedAi = rawAi || {};\n}\n\nconst diagnosesList = parsedAi.simplifiedDiagnosis ? (Array.isArray(parsedAi.simplifiedDiagnosis) ? parsedAi.simplifiedDiagnosis : [parsedAi.simplifiedDiagnosis]) : (extracted.diagnoses ? (Array.isArray(extracted.diagnoses) ? extracted.diagnoses : [extracted.diagnoses]) : ['பொது மருத்துவ மீட்பு மற்றும் அவதானிப்பு']);\n\nconst medicationList = parsedAi.medicationList || extracted.medications || [\n  {\n    name: 'Post-Discharge Recovery Regimen',\n    dosage: 'As directed',\n    frequency: 'தினமும் உணவுக்குப் பிறகு',\n    duration: '7 நாட்கள்',\n    instructions: 'உணவுக்குப் பிறகு தண்ணீருடன் பரிந்துரைக்கப்பட்ட அளவை எடுத்துக் கொள்ளவும்.'\n  }\n];\n\nconst explanation = parsedAi.patientExplanation || parsedAi.whatsappText || parsedAi.voiceNoteScript || 'பரிந்துரைக்கப்பட்ட மருந்துகளை சரியான நேரத்தில் உட்கொள்ளவும். ஓய்வு மற்றும் ஊட்டச்சத்து நிறைந்த உணவு முக்கியம்.';\n\nreturn [{\n  success: true,\n  diagnosis: diagnosesList,\n  diagnoses: diagnosesList,\n  medications: medicationList,\n  patientExplanation: explanation,\n  dietaryGuidelines: parsedAi.dietaryRules || ['நீரேற்றம், ஊட்டச்சத்து நிறைந்த சீரான உணவு', 'காரமான அல்லது எண்ணெய் நிறைந்த உணவுகளைத் தவிர்க்கவும்'],\n  activityRestrictions: parsedAi.activityRestrictions || ['3 முதல் 5 நாட்களுக்கு போதுமான ஓய்வு', 'கடுமையான உடல் செயல்பாடுகளைத் தவிர்க்கவும்'],\n  followUp: parsedAi.followUp || ['வெளிநோயாளர் கிளினிக்கில் 10 நாட்களில் வழக்கமான பின்தொடர்தல்'],\n  whatsappPreview: parsedAi.whatsappText || explanation,\n  voiceScript: parsedAi.voiceNoteScript || explanation,\n  patient: {\n    id: reqBody.patientId || 'P1008',\n    name: extracted.patientName || reqBody.patientName || 'Patient',\n    mrn: extracted.mrn || reqBody.mrn || 'MRN-P1008',\n    phone: reqBody.phone || '+91 89036 43218',\n    language: reqBody.language || 'Tamil',\n    dischargeDate: extracted.dischargeDate || new Date().toLocaleDateString('en-GB'),\n    diagnosis: diagnosesList,\n    medications: medicationList,\n    patientExplanation: explanation\n  },\n  processedAt: new Date().toISOString()\n}];"
         },
         "toolId": "code.execute",
         "toolData": {
@@ -2424,7 +2424,7 @@
         "inputs": {
           "language": "javascript",
           "mode": "all",
-          "code": "const req = $node[\"webhook-wa-01\"].json.body || {};\nconst record = $node[\"postgres-fetch-02\"].json || {};\n\nconst patientName = req.patientName || record.patientName || 'Patient';\nconst phone = req.recipientPhoneNumber || req.phone || '+918903643218';\nconst lang = req.language || record.language || 'Tamil';\n\nconst textMessage = `🏥 *St. Jude Memorial Hospital - Official Discharge Care Plan*\n------------------------------------------------\nHello *${patientName}*, here is your personalized recovery and medication guide in *${lang}*.\n\n🩺 *Diagnosis / நிலை:*\n${record.diagnoses || 'பொது மருத்துவ மீட்பு மற்றும் அவதானிப்பு'}\n\n💊 *Prescribed Medications / பரிந்துரைக்கப்பட்ட மருந்துகள்:*\n• Post-Discharge Recovery Regimen - தினமும் உணவுக்குப் பிறகு (7 நாட்கள்)\nஉணவுக்குப் பிறகு தண்ணீருடன் பரிந்துரைக்கப்பட்ட அளவை உட்கொள்ளவும்.\n\n🥗 *Dietary Care / உணவு முறை:*\n• நீரேற்றம், ஊட்டச்சத்து நிறைந்த சீரான உணவு\n• காரமான அல்லது எண்ணெய் நிறைந்த உணவுகளைத் தவிர்க்கவும்\n\n⚠️ *Emergency Signs / எச்சரிக்கை அறிகுறிகள்:*\nகாய்ச்சல், மூச்சுத் திணறல் அல்லது அசாதாரண வலி ஏற்பட்டால் உடனடியாக +1 (800) 555-0199 என்ற எண்ணை அழைக்கவும்.\n\n🎙️ *Audio Voice Note Link:*\nListen in ${lang}: https://care.stjudehospital.org/audio/${record.mrn || 'P1008'}`;\n\nreturn [{\n  recipient: phone,\n  patientName: patientName,\n  whatsappBody: textMessage,\n  audioUrl: `https://care.stjudehospital.org/audio/${record.mrn || 'P1008'}.mp3`,\n  mrn: record.mrn || req.mrn || 'MRN-P1008',\n  channel: req.channel || 'fullPacket'\n}];"
+          "code": "const req = $node[\"webhook-master-01\"].json.body || {};\nconst record = $node[\"b1-postgres-fetch-02\"].json || {};\n\nconst patientName = req.patientName || record.patientName || 'Patient';\nconst phone = req.recipientPhoneNumber || req.phone || '+918903643218';\nconst lang = req.language || record.language || 'Tamil';\n\nconst textMessage = `🏥 *St. Jude Memorial Hospital - Official Discharge Care Plan*\n------------------------------------------------\nHello *${patientName}*, here is your personalized recovery and medication guide in *${lang}*.\n\n🩺 *Diagnosis / நிலை:*\n${record.diagnoses || 'பொது மருத்துவ மீட்பு மற்றும் அவதானிப்பு'}\n\n💊 *Prescribed Medications / பரிந்துரைக்கப்பட்ட மருந்துகள்:*\n• Post-Discharge Recovery Regimen - தினமும் உணவுக்குப் பிறகு (7 நாட்கள்)\nஉணவுக்குப் பிறகு தண்ணீருடன் பரிந்துரைக்கப்பட்ட அளவை உட்கொள்ளவும்.\n\n🥗 *Dietary Care / உணவு முறை:*\n• நீரேற்றம், ஊட்டச்சத்து நிறைந்த சீரான உணவு\n• காரமான அல்லது எண்ணெய் நிறைந்த உணவுகளைத் தவிர்க்கவும்\n\n⚠️ *Emergency Signs / எச்சரிக்கை அறிகுறிகள்:*\nகாய்ச்சல், மூச்சுத் திணறல் அல்லது அசாதாரண வலி ஏற்பட்டால் உடனடியாக +1 (800) 555-0199 என்ற எண்ணை அழைக்கவும்.\n\n🎙️ *Audio Voice Note Link:*\nListen in ${lang}: https://care.stjudehospital.org/audio/${record.mrn || 'P1008'}`;\n\nreturn [{\n  recipient: phone,\n  patientName: patientName,\n  whatsappBody: textMessage,\n  audioUrl: `https://care.stjudehospital.org/audio/${record.mrn || 'P1008'}.mp3`,\n  mrn: record.mrn || req.mrn || 'MRN-P1008',\n  channel: req.channel || 'fullPacket'\n}];"
         },
         "toolId": "code.execute",
         "toolData": {
@@ -2502,7 +2502,7 @@
             "Content-Type": "application/json"
           },
           "bodyType": "json",
-          "body": "{\n  \"to_number\": \"{{ $node[\\\"b1-code-wa-formatter-03\\\"].json.recipient }}\",\n  \"from_number\": \"+918903643218\",\n  \"text\": \"{{ $node[\\\"b1-code-wa-formatter-03\\\"].json.whatsappBody }}\"\n}"
+          "body": "{\n  \"to_number\": \"{{ $node[\"b1-code-wa-formatter-03\"].json.recipient }}\",\n  \"from_number\": \"+918903643218\",\n  \"text\": \"{{ $node[\"b1-code-wa-formatter-03\"].json.whatsappBody }}\"\n}"
         },
         "toolId": "httpRequest",
         "toolData": {
@@ -2542,7 +2542,7 @@
             "Content-Type": "application/json"
           },
           "bodyType": "json",
-          "body": "{\n  \"to_number\": \"{{ $node[\\\"b1-code-wa-formatter-03\\\"].json.recipient }}\",\n  \"from_number\": \"+918903643218\",\n  \"url\": \"{{ $node[\\\"b1-code-wa-formatter-03\\\"].json.audioUrl }}\"\n}"
+          "body": "{\n  \"to_number\": \"{{ $node[\"b1-code-wa-formatter-03\"].json.recipient }}\",\n  \"from_number\": \"+918903643218\",\n  \"url\": \"{{ $node[\"b1-code-wa-formatter-03\"].json.audioUrl }}\"\n}"
         },
         "toolId": "httpRequest",
         "toolData": {
@@ -2581,7 +2581,7 @@
             {
               "field": "mrn",
               "operator": "equal",
-              "value": "{{ $node[\"code-wa-formatter-03\"].json.mrn }}"
+              "value": "{{ $node[\"b1-code-wa-formatter-03\"].json.mrn }}"
             }
           ]
         },
@@ -2964,7 +2964,7 @@
           "model": "gemini-2.5-flash",
           "resource": "Text",
           "operation": "Message a Model",
-          "prompt": "You are the St. Jude Memorial Hospital Clinical AI Assistant.\nPatient Record: {{ JSON.stringify($node[\"postgres-load-ehr-02\"].json) }}\nPatient Question: \"{{ $node[\"webhook-assistant-01\"].json.body.question }}\"\nLanguage: {{ $node[\"webhook-assistant-01\"].json.body.language || 'English' }}\n\nClinical Guidelines:\n1. Cross-reference the patient's question with their active prescribed discharge medications.\n2. Check for drug-drug interactions (e.g., Aspirin with ACE inhibitors, blood thinners, dizziness causes).\n3. If dizziness, chest pain, or high fever are mentioned, provide immediate safe red-flag instructions.\n4. Give clear, empathetic guidance in the requested language.\n5. Always emphasize that this is educational and verified against hospital discharge notes."
+          "prompt": "You are the St. Jude Memorial Hospital Clinical AI Assistant.\nPatient Record: {{ JSON.stringify($node[\"b2-postgres-load-ehr-02\"].json) }}\nPatient Question: \"{{ $node[\"webhook-master-01\"].json.body.question }}\"\nLanguage: {{ $node[\"webhook-master-01\"].json.body.language || 'English' }}\n\nClinical Guidelines:\n1. Cross-reference the patient's question with their active prescribed discharge medications.\n2. Check for drug-drug interactions (e.g., Aspirin with ACE inhibitors, blood thinners, dizziness causes).\n3. If dizziness, chest pain, or high fever are mentioned, provide immediate safe red-flag instructions.\n4. Give clear, empathetic guidance in the requested language.\n5. Always emphasize that this is educational and verified against hospital discharge notes."
         },
         "toolId": "gemini",
         "toolData": {
@@ -4286,7 +4286,7 @@
         "inputs": {
           "language": "javascript",
           "mode": "all",
-          "code": "const aiRes = $node[\"gemini-clinical-qa-03\"].json;\nconst rawText = typeof aiRes === 'string' ? aiRes : (aiRes.text || aiRes.content || JSON.stringify(aiRes));\n\nreturn [{\n  success: true,\n  answer: rawText,\n  verifiedByEHR: true,\n  safetyScore: 0.98,\n  disclaimer: \"AI-generated information is intended to help patients understand their discharge instructions. It does not replace advice from a qualified healthcare professional.\",\n  timestamp: new Date().toISOString()\n}];"
+          "code": "const aiRes = $node[\"b2-gemini-clinical-qa-03\"].json;\nconst rawText = typeof aiRes === 'string' ? aiRes : (aiRes.text || aiRes.content || JSON.stringify(aiRes));\n\nreturn [{\n  success: true,\n  answer: rawText,\n  verifiedByEHR: true,\n  safetyScore: 0.98,\n  disclaimer: \"AI-generated information is intended to help patients understand their discharge instructions. It does not replace advice from a qualified healthcare professional.\",\n  timestamp: new Date().toISOString()\n}];"
         },
         "toolId": "code.execute",
         "toolData": {
@@ -4656,7 +4656,7 @@
             {
               "field": "medication_name",
               "operator": "equal",
-              "value": "{{ $node[\"extractor-rx-02\"].json.medicationName }}"
+              "value": "{{ $node[\"b3-extractor-rx-02\"].json.medicationName }}"
             }
           ]
         },
@@ -4851,7 +4851,7 @@
         "label": "Clinical Pharmacology & Error Detection Engine",
         "inputs": {
           "model": "gemini-2.5-flash",
-          "prompt": "Evaluate this prescription for clinical and pharmacy operational safety:\nPrescription: {{ JSON.stringify($node[\"extractor-rx-02\"].json) }}\nInventory Level: {{ JSON.stringify($node[\"postgres-check-inventory-03\"].json) }}\n\nSafety Verification Checks:\n1. Daily dosage limit verification (e.g. max daily bounds for active ingredients).\n2. Look-Alike Sound-Alike (LASA) medication confusion risk.\n3. Drug-Allergy contraindications.\n4. Stock availability check.\n\nReturn JSON:\n{\n  \"status\": \"APPROVED\" | \"FLAGGED_HIGH_RISK\",\n  \"reason\": string,\n  \"requiresPharmacistIntervention\": boolean,\n  \"inventoryAvailable\": boolean,\n  \"dispensingLabel\": string\n}"
+          "prompt": "Evaluate this prescription for clinical and pharmacy operational safety:\nPrescription: {{ JSON.stringify($node[\"b3-extractor-rx-02\"].json) }}\nInventory Level: {{ JSON.stringify($node[\"b3-postgres-check-inventory-03\"].json) }}\n\nSafety Verification Checks:\n1. Daily dosage limit verification (e.g. max daily bounds for active ingredients).\n2. Look-Alike Sound-Alike (LASA) medication confusion risk.\n3. Drug-Allergy contraindications.\n4. Stock availability check.\n\nReturn JSON:\n{\n  \"status\": \"APPROVED\" | \"FLAGGED_HIGH_RISK\",\n  \"reason\": string,\n  \"requiresPharmacistIntervention\": boolean,\n  \"inventoryAvailable\": boolean,\n  \"dispensingLabel\": string\n}"
         },
         "toolId": "gemini",
         "toolData": {

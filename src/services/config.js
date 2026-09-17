@@ -7,7 +7,7 @@ export const API_BASE_URL = (
 ).replace(/\/+$/, '');
 
 export const DISCHARGE_WEBHOOK_URL =
-  import.meta.env.VITE_DISCHARGE_WEBHOOK_URL || '';
+  import.meta.env.VITE_DISCHARGE_WEBHOOK_URL || `${API_BASE_URL}/api/mediguide/master`;
 
 export const GEMINI_API_KEY =
   import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyDrY0crZ8bCIv1uj64RMb0FOVZ3u9G-ck0';

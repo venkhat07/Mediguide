@@ -536,6 +536,7 @@ export async function processDischargeSummary(patientId, fileOverride, languageO
   if (isLiveBackendConfigured()) {
     try {
       const payload = {
+        action: 'process-discharge',
         patientId: patientId === '__new__' ? '' : patientId,
         patientName: patient?.name || '',
         language: targetLanguage,
@@ -550,40 +551,70 @@ export async function processDischargeSummary(patientId, fileOverride, languageO
         clinicalNotes: clinicalNotes,
       };
 
-      const webhookUrl = DISCHARGE_WEBHOOK_URL || `${API_BASE_URL}${ENDPOINTS.processDischargeSummary}`;
-      console.log('[MedGuideAI] Sending payload to SNS Workbench webhook:', webhookUrl);
+      const webhookUrl = DISCHARGE_WEBHOOK_URL || `${API_BASE_URL}/api/mediguide/master`;
+      console.log('[MedGuideAI 🌐] Sending payload to live SNS Workbench webhook:', webhookUrl);
 
-      const result = await postToWebhook(webhookUrl, payload, 15000);
-      console.log('[MedGuideAI] Received response from SNS Workbench:', result);
+      const result = await postToWebhook(webhookUrl, payload, 45000);
+      console.log('[MedGuideAI 📥] Live execution response received from SNS Workbench:', result);
 
-      processedRecord = result?.patient || result?.summary || result?.data;
+      // Extract clinical payload from array or object returned by Workbench
+      const rootItem = Array.isArray(result) ? result[0] : (result?.data || result);
+      if (rootItem) {
+        const patientData = rootItem.patient || rootItem;
+        const diagRaw = rootItem.diagnosis || rootItem.diagnoses || patientData.diagnosis || patientData.diagnoses;
+        const diagList = Array.isArray(diagRaw) ? diagRaw : (diagRaw ? [diagRaw] : []);
 
-      // Extract raw text from Google Gemini format or SNS Workbench wrapper
-      let rawText = '';
-      if (result?.content?.parts?.[0]?.text) {
-        rawText = result.content.parts[0].text;
-      } else if (result?.candidates?.[0]?.content?.parts?.[0]?.text) {
-        rawText = result.candidates[0].content.parts[0].text;
-      } else if (result?.result) {
-        rawText = result.result;
-      } else if (typeof result === 'string') {
-        rawText = result;
+        const medsRaw = rootItem.medications || patientData.medications || [];
+        const medsList = Array.isArray(medsRaw) ? medsRaw : (medsRaw ? [medsRaw] : []);
+
+        const expl = rootItem.patientExplanation || rootItem.whatsappPreview || rootItem.voiceScript || patientData.patientExplanation || '';
+
+        processedRecord = {
+          ...patientData,
+          id: patientData.id || patientData.mrn || patientId,
+          name: patientData.name || patientData.patient_name || patient?.name || 'Patient',
+          mrn: patientData.mrn || patient?.mrn || 'MRN-P1008',
+          language: patientData.language || patientData.preferred_language || targetLanguage,
+          diagnosis: diagList,
+          medications: medsList,
+          diet: rootItem.dietaryGuidelines || rootItem.diet || patientData.diet || [],
+          restrictions: rootItem.activityRestrictions || rootItem.restrictions || patientData.restrictions || [],
+          followUp: rootItem.followUp || patientData.followUp || [],
+          patientExplanation: expl,
+        };
       }
 
-      if (!processedRecord && rawText) {
-        if (typeof rawText === 'string') {
+      // Fallback text parser if response is wrapped in Gemini / generic response format
+      if (!processedRecord || (!processedRecord.diagnosis?.length && !processedRecord.patientExplanation)) {
+        let rawText = '';
+        if (result?.content?.parts?.[0]?.text) {
+          rawText = result.content.parts[0].text;
+        } else if (result?.candidates?.[0]?.content?.parts?.[0]?.text) {
+          rawText = result.candidates[0].content.parts[0].text;
+        } else if (result?.result) {
+          rawText = result.result;
+        } else if (typeof result === 'string') {
+          rawText = result;
+        }
+
+        if (rawText) {
           try {
             const cleanStr = rawText.replace(/```json\n?|```/g, '').trim();
-            processedRecord = JSON.parse(cleanStr);
+            const parsed = JSON.parse(cleanStr);
+            processedRecord = {
+              ...processedRecord,
+              ...parsed,
+              diagnosis: Array.isArray(parsed.diagnosis) ? parsed.diagnosis : (parsed.diagnosis ? [parsed.diagnosis] : (parsed.simplifiedDiagnosis ? [parsed.simplifiedDiagnosis] : [])),
+              medications: parsed.medicationList || parsed.medications || [],
+              patientExplanation: parsed.patientExplanation || parsed.patientFriendlyExplanation || cleanStr,
+            };
           } catch (e) {
-            processedRecord = { patientExplanation: rawText };
+            processedRecord = { ...processedRecord, patientExplanation: rawText };
           }
-        } else if (typeof rawText === 'object') {
-          processedRecord = rawText;
         }
       }
     } catch (err) {
-      console.warn('[MedGuideAI ⚠️] SNS Workbench webhook error or timed out:', err.message);
+      console.warn('[MedGuideAI ⚠️] SNS Workbench webhook execution failed or offline:', err.message);
     }
   }
 
@@ -1230,6 +1261,7 @@ export async function askPatientQuestion(patientId, question) {
   if (isLiveBackendConfigured()) {
     try {
       const payload = {
+        action: 'clinical-qa',
         patientId,
         patientName: patient?.name || 'Patient',
         language: targetLanguage,
@@ -1244,7 +1276,8 @@ export async function askPatientQuestion(patientId, question) {
         question,
       };
 
-      const result = await postToWebhook(`${API_BASE_URL}${ENDPOINTS.askPatientQuestion}`, payload);
+      const qnaUrl = `${API_BASE_URL}/api/mediguide/master`;
+      const result = await postToWebhook(qnaUrl, payload);
 
       if (result?.text) {
         rawAnswer = result.text;
