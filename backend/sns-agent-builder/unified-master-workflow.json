@@ -2,7 +2,7 @@
   "_platform": "agentbuilder",
   "_version": 1,
   "_exportedAt": "2026-09-17T13:36:24.074Z",
-  "_fingerprint": "YWN0aW9uOmNvZGUuZXhlY3V0ZXxhY3Rpb246ZXh0cmFjdC1mcm9tLWZpbGUuZXh0",
+  "_fingerprint": "YWN0aW9uOmNvZGUuZXhlY3V0ZXxhY3Rpb246Y29kZS5leGVjdXRlfGFjdGlvbjpj",
   "nodes": [
     {
       "id": "webhook-master-01",
