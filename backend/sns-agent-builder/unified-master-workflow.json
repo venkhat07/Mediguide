@@ -1,7 +1,7 @@
 {
   "_platform": "agentbuilder",
   "_version": 1,
-  "_exportedAt": "2026-09-17T18:25:53.207Z",
+  "_exportedAt": "2026-09-17T18:36:52.233Z",
   "_fingerprint": "YWN0aW9uOmNvZGUuZXhlY3V0ZXxhY3Rpb246Y29kZS5leGVjdXRlfGFjdGlvbjpj",
   "nodes": [
     {
@@ -940,7 +940,7 @@
       "data": {
         "label": "MediGuide AI Simplifier & Multilingual Engine",
         "inputs": {
-          "model": "gemini-2.5-flash",
+          "model": "gemini-2.0-flash-exp",
           "resource": "Text",
           "operation": "Message a Model",
           "prompt": "You are the MediGuide AI Clinical Reasoning & Simplification Engine.\nInput clinical notes: {{ JSON.stringify($node[\"b0-extractor-entities-03\"].json) }}\nTarget Language: {{ $node[\"webhook-master-01\"].json.body.language || 'Tamil' }}\n\nTasks:\n1. Simplify medical jargon to a clear, patient-centric 6th-grade reading level.\n2. Cross-reference prescribed medications to verify dosages, timing (Morning, Afternoon, Night), and food instructions (before/after meals).\n3. Translate all guidance (Diagnosis, Medication Regimen, Dietary Rules, Physical Activity, Follow-up) into the target language.\n4. Generate a WhatsApp formatted message template with emojis (🩺, 💊, 🥗, ⚠️, 📅).\n5. Generate an empathetic, clear audio narration script in the native language for Text-to-Speech audio dispatch.\n\nOutput structured JSON matching:\n{\n  \"simplifiedDiagnosis\": string,\n  \"medicationList\": [{\"name\": string, \"dosage\": string, \"frequency\": string, \"duration\": string, \"foodTiming\": string, \"instructions\": string}],\n  \"dietaryRules\": [string],\n  \"activityRestrictions\": [string],\n  \"followUp\": [string],\n  \"emergencySigns\": [string],\n  \"whatsappText\": string,\n  \"voiceNoteScript\": string\n}"
@@ -2961,7 +2961,7 @@
       "data": {
         "label": "Gemini Clinical Pharmacological Reasoning",
         "inputs": {
-          "model": "gemini-2.5-flash",
+          "model": "gemini-2.0-flash-exp",
           "resource": "Text",
           "operation": "Message a Model",
           "prompt": "You are the St. Jude Memorial Hospital Clinical AI Assistant.\nPatient Record: {{ JSON.stringify($node[\"b2-postgres-load-ehr-02\"].json) }}\nPatient Question: \"{{ $node[\"webhook-master-01\"].json.body.question }}\"\nLanguage: {{ $node[\"webhook-master-01\"].json.body.language || 'English' }}\n\nClinical Guidelines:\n1. Cross-reference the patient's question with their active prescribed discharge medications.\n2. Check for drug-drug interactions (e.g., Aspirin with ACE inhibitors, blood thinners, dizziness causes).\n3. If dizziness, chest pain, or high fever are mentioned, provide immediate safe red-flag instructions.\n4. Give clear, empathetic guidance in the requested language.\n5. Always emphasize that this is educational and verified against hospital discharge notes."
@@ -4850,7 +4850,7 @@
       "data": {
         "label": "Clinical Pharmacology & Error Detection Engine",
         "inputs": {
-          "model": "gemini-2.5-flash",
+          "model": "gemini-2.0-flash-exp",
           "prompt": "Evaluate this prescription for clinical and pharmacy operational safety:\nPrescription: {{ JSON.stringify($node[\"b3-extractor-rx-02\"].json) }}\nInventory Level: {{ JSON.stringify($node[\"b3-postgres-check-inventory-03\"].json) }}\n\nSafety Verification Checks:\n1. Daily dosage limit verification (e.g. max daily bounds for active ingredients).\n2. Look-Alike Sound-Alike (LASA) medication confusion risk.\n3. Drug-Allergy contraindications.\n4. Stock availability check.\n\nReturn JSON:\n{\n  \"status\": \"APPROVED\" | \"FLAGGED_HIGH_RISK\",\n  \"reason\": string,\n  \"requiresPharmacistIntervention\": boolean,\n  \"inventoryAvailable\": boolean,\n  \"dispensingLabel\": string\n}"
         },
         "toolId": "gemini",
