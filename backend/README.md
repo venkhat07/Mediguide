@@ -6,15 +6,16 @@ This directory provides the backend workflow files formatted for **SNS Workbench
 
 ## 📁 Workflow Directories
 
-1. **`backend/sns-agent-builder/`** *(Use this for your SNS Workbench Agent Builder!)*
-   - Formatted specifically with the **Agent Builder** native schema (`nodes` + `edges` with `toolId` definitions).
-   - **`01-ai-discharge-processor.json`**: Webhook ➔ PDF Extractor ➔ Gemini 1.5 Medical LLM ➔ Webhook Response.
-   - **`02-patients-api.json`**: Webhook ➔ Webhook Response for patient records & statistics.
-   - **`03-whatsapp-dispatcher.json`**: Webhook ➔ WhatsApp Message Node ➔ Webhook Response.
-   - **`04-qna-assistant.json`**: Webhook ➔ Gemini Q&A Model with clinical safety guardrails ➔ Webhook Response.
+1. **`backend/sns-agent-builder/`** *(For SNS Workbench Agent Builder visual canvas!)*
+   - **`unified-master-workflow.json`**: ⭐ **All-in-One Master Workflow with Integrated Database** (Single webhook ➔ Router ➔ Clinical Database + Gemini AI + WhatsApp + Q&A).
+   - `01-ai-discharge-processor.json`: Standalone Discharge summary processing pipeline.
+   - `02-patients-api.json`: Standalone Patient records directory sync.
+   - `03-whatsapp-dispatcher.json`: Standalone WhatsApp text & audio notification dispatcher.
+   - `04-qna-assistant.json`: Standalone Post-discharge Q&A assistant with safety guardrails.
 
-2. **`backend/sns-workbench/`**
-   - Standard n8n-compatible JSON definitions (for standalone n8n deployments).
+2. **`backend/sns-workbench/`** *(For standalone n8n / enterprise workflow engines)*
+   - **`unified-master-workflow.json`**: Complete n8n master workflow with PostgreSQL / Supabase Database nodes.
+   - Standalone workflow definitions for modular deployment.
 
 ---
 

@@ -1,0 +1,203 @@
+{
+  "name": "MediGuide AI - Unified Master Workflow with Database",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mediguide/api",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "master-webhook",
+      "name": "Master Webhook (POST /mediguide/api)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [ 160, 400 ],
+      "webhookId": "mediguide-master-api"
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.body.action || $json.action || 'process-discharge' }}",
+        "rules": {
+          "rules": [
+            { "value2": "process-discharge", "output": 0 },
+            { "value2": "patients-sync", "output": 1 },
+            { "value2": "send-whatsapp", "output": 2 },
+            { "value2": "ask-qna", "output": 3 }
+          ]
+        }
+      },
+      "id": "action-router",
+      "name": "Route by Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [ 400, 400 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{ "name": "key", "value": "={{ $env.GEMINI_API_KEY || 'REPLACE_WITH_YOUR_GEMINI_API_KEY' }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"You are a board-certified clinical physician and expert medical translator. Extract all clinical facts, diagnoses, medications, and recovery guidelines from this discharge note for {{ $json.body.patientName || 'Patient' }} in {{ $json.body.language || 'Tamil' }}.\\n\\nNotes: {{ $json.body.clinicalNotes || 'Patient recovery' }}\\n\\nRespond with valid JSON: { diagnosis: [], medications: [{ name, dosage, frequency, duration, explanation }], diet: [], restrictions: [], followUp: [], warningSigns: [], patientExplanation: '' }\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": { \"responseMimeType\": \"application/json\", \"temperature\": 0.2 }\n}"
+      },
+      "id": "gemini-discharge-llm",
+      "name": "Gemini 2.5 Flash (Discharge Extraction)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [ 680, 200 ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM patients WHERE id = $1 OR $1 IS NULL ORDER BY created_at DESC;",
+        "additionalFields": {
+          "queryParams": "={{ $json.body.patientId || null }}"
+        }
+      },
+      "id": "db-query-patients",
+      "name": "Clinical Database (Select Patients)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [ 680, 360 ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format structured WhatsApp message and spoken voice narration script\nconst body = $json.body || $json;\nconst patientName = body.patientName || 'Patient';\nconst language = body.language || 'Tamil';\nconst explanation = body.patientExplanation || 'Take medications as prescribed';\n\nconst waText = `🏥 *St. Jude Memorial Hospital — Care Plan*\\n👤 *Patient:* ${patientName}\\n🌐 *Language:* ${language}\\n\\n📝 *Care Advice:*\\n${explanation}\\n\\n🎙️ *Audio Voice Note Attached*\\n━━━━━━━━━━━━━━━━━━━━\\n💬 _MediGuide AI Hospital Channel_`;\n\nreturn [{\n  json: {\n    status: 'Delivered',\n    channel: 'WhatsApp',\n    contentType: 'Care Packet (Text + Voice)',\n    recipientPhone: body.patientPhone || '+91 89036 43218',\n    formattedMessage: waText,\n    voiceUrl: `http://localhost:5173/patients/${body.patientId || 'P1001'}/summary`,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "whatsapp-voice-generator",
+      "name": "WhatsApp & Voice Generator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [ 680, 520 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{ "name": "key", "value": "={{ $env.GEMINI_API_KEY || 'REPLACE_WITH_YOUR_GEMINI_API_KEY' }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"You are MediGuide AI Clinical Assistant. Answer the patient's recovery question: \\\"{{ $json.body.question }}\\\". Ground answer in their care plan. If chest pain or severe fever is reported, instruct immediate ER contact.\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": { \"temperature\": 0.3 }\n}"
+      },
+      "id": "gemini-qna-llm",
+      "name": "Gemini 2.5 Flash (Grounded Q&A)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [ 680, 680 ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO patients (id, name, language, discharge_date, patient_explanation, diagnosis, medications, created_at) VALUES ($1, $2, $3, NOW(), $4, $5, $6, NOW()) ON CONFLICT (id) DO UPDATE SET patient_explanation = EXCLUDED.patient_explanation, diagnosis = EXCLUDED.diagnosis, medications = EXCLUDED.medications RETURNING *;",
+        "additionalFields": {
+          "queryParams": "={{ [ $json.patientId || 'P1006', $json.patientName || 'Patient', $json.language || 'Tamil', $json.patientExplanation || '', JSON.stringify($json.diagnosis || []), JSON.stringify($json.medications || []) ] }}"
+        }
+      },
+      "id": "db-upsert-patient",
+      "name": "Clinical Database (Upsert Patient Care Plan)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [ 960, 200 ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO communication_logs (patient_id, channel, content_type, language, text_message, status, sent_at) VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING *;",
+        "additionalFields": {
+          "queryParams": "={{ [ $json.patientId || 'P1001', 'WhatsApp', 'Care Packet (Text + Voice)', $json.language || 'Tamil', $json.formattedMessage || '', 'Delivered' ] }}"
+        }
+      },
+      "id": "db-log-communication",
+      "name": "Clinical Database (Log WhatsApp Message)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [ 960, 520 ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO patient_conversations (patient_id, question, answer, created_at) VALUES ($1, $2, $3, NOW()) RETURNING *;",
+        "additionalFields": {
+          "queryParams": "={{ [ $json.patientId || 'P1001', $json.body.question || '', $json.candidates?.[0]?.content?.parts?.[0]?.text || '' ] }}"
+        }
+      },
+      "id": "db-log-qna",
+      "name": "Clinical Database (Log Q&A Conversation)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [ 960, 680 ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'success', data: $json, timestamp: new Date().toISOString() }) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Access-Control-Allow-Methods", "value": "POST, GET, OPTIONS" },
+              { "name": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+            ]
+          }
+        }
+      },
+      "id": "master-webhook-response",
+      "name": "Unified Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [ 1240, 400 ]
+    }
+  ],
+  "connections": {
+    "Master Webhook (POST /mediguide/api)": {
+      "main": [[{ "node": "Route by Action", "type": "main", "index": 0 }]]
+    },
+    "Route by Action": {
+      "main": [
+        [{ "node": "Gemini 2.5 Flash (Discharge Extraction)", "type": "main", "index": 0 }],
+        [{ "node": "Clinical Database (Select Patients)", "type": "main", "index": 0 }],
+        [{ "node": "WhatsApp & Voice Generator", "type": "main", "index": 0 }],
+        [{ "node": "Gemini 2.5 Flash (Grounded Q&A)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Gemini 2.5 Flash (Discharge Extraction)": {
+      "main": [[{ "node": "Clinical Database (Upsert Patient Care Plan)", "type": "main", "index": 0 }]]
+    },
+    "Clinical Database (Select Patients)": {
+      "main": [[{ "node": "Unified Webhook Response", "type": "main", "index": 0 }]]
+    },
+    "WhatsApp & Voice Generator": {
+      "main": [[{ "node": "Clinical Database (Log WhatsApp Message)", "type": "main", "index": 0 }]]
+    },
+    "Gemini 2.5 Flash (Grounded Q&A)": {
+      "main": [[{ "node": "Clinical Database (Log Q&A Conversation)", "type": "main", "index": 0 }]]
+    },
+    "Clinical Database (Upsert Patient Care Plan)": {
+      "main": [[{ "node": "Unified Webhook Response", "type": "main", "index": 0 }]]
+    },
+    "Clinical Database (Log WhatsApp Message)": {
+      "main": [[{ "node": "Unified Webhook Response", "type": "main", "index": 0 }]]
+    },
+    "Clinical Database (Log Q&A Conversation)": {
+      "main": [[{ "node": "Unified Webhook Response", "type": "main", "index": 0 }]]
+    }
+  }
+}

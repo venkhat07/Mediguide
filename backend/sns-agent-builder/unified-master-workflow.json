@@ -1,0 +1,226 @@
+{
+  "name": "MediGuide AI - Unified Master Workflow with Database",
+  "description": "All-in-one backend workflow combining Discharge Processing, Database Storage, WhatsApp Dispatching, and Grounded Clinical Q&A into a single visual canvas.",
+  "nodes": [
+    {
+      "id": "master-webhook-trigger",
+      "type": "webhook",
+      "position": { "x": 80, "y": 300 },
+      "data": {
+        "label": "Master Webhook Trigger",
+        "toolId": "webhook",
+        "toolData": {
+          "id": "webhook",
+          "displayName": "Master Webhook Trigger",
+          "category": "Input / Output",
+          "icon": "webhook",
+          "description": "Single entry point for all MediGuide AI backend operations",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string", "default": "mediguide/api" },
+              "method": { "type": "string", "default": "POST" }
+            }
+          }
+        },
+        "isTrigger": true,
+        "isPrimaryTrigger": true,
+        "inputs": {
+          "path": "mediguide/api",
+          "method": "POST",
+          "responseMode": "respondWithNode",
+          "authentication": "none"
+        }
+      },
+      "width": 240,
+      "height": 100
+    },
+    {
+      "id": "master-request-router",
+      "type": "action",
+      "position": { "x": 380, "y": 300 },
+      "data": {
+        "label": "Workflow Action Router",
+        "toolId": "router",
+        "toolData": {
+          "id": "router",
+          "displayName": "Action Router / Switch",
+          "category": "Logic / Routing",
+          "icon": "git-branch",
+          "description": "Inspects incoming request and routes to corresponding pipeline branch (Discharge, Patients DB, WhatsApp, or Q&A)"
+        },
+        "inputs": {
+          "rules": [
+            { "field": "action", "operator": "equals", "value": "process-discharge", "route": "branch-discharge" },
+            { "field": "action", "operator": "equals", "value": "patients-sync", "route": "branch-patients" },
+            { "field": "action", "operator": "equals", "value": "send-whatsapp", "route": "branch-whatsapp" },
+            { "field": "action", "operator": "equals", "value": "ask-qna", "route": "branch-qna" }
+          ]
+        }
+      },
+      "width": 220,
+      "height": 94
+    },
+    {
+      "id": "clinical-database-node",
+      "type": "action",
+      "position": { "x": 680, "y": 80 },
+      "data": {
+        "label": "Clinical Database (PostgreSQL / Supabase)",
+        "toolId": "database",
+        "toolData": {
+          "id": "database",
+          "displayName": "Clinical Database",
+          "type": "database",
+          "category": "Data & Storage",
+          "provider": "PostgreSQL / Supabase",
+          "operation": "CRUD Operations",
+          "icon": "database",
+          "description": "Stores patient care plans, prescription regimens, WhatsApp delivery receipts, and Q&A audit trails"
+        },
+        "inputs": {
+          "databaseType": "PostgreSQL",
+          "tables": ["patients", "medications", "communication_logs", "patient_conversations"],
+          "operations": ["SELECT", "INSERT", "UPDATE"]
+        }
+      },
+      "width": 260,
+      "height": 110
+    },
+    {
+      "id": "gemini-clinical-processor",
+      "type": "action",
+      "position": { "x": 680, "y": 240 },
+      "data": {
+        "label": "Gemini 2.5 Flash (Discharge Engine)",
+        "toolId": "gemini",
+        "toolData": {
+          "id": "gemini",
+          "displayName": "Google Gemini 2.5 Flash",
+          "type": "chat model",
+          "category": "AI / LLM",
+          "provider": "LLM Models",
+          "operation": "Message a Model",
+          "icon": "api",
+          "description": "Parses medical notes, extracts structured JSON care plan, and translates into patient native language"
+        },
+        "inputs": {
+          "model": "gemini-2.5-flash",
+          "prompt": "You are a board-certified physician and expert medical translator. Analyze this clinical discharge summary for patient: {{ $json.patientName }}.\nTarget Language: {{ $json.language || 'Tamil' }}\nNotes: {{ $json.clinicalNotes }}\n\nExtract:\n1. Diagnoses\n2. Prescriptions with dosages & timing (instructions in {{ $json.language }})\n3. 6th-grade reading level explanation in {{ $json.language }}\n4. Dietary rules, restrictions & warning signs in {{ $json.language }}.\n\nReturn strict JSON schema with patientExplanation, diagnosis, medications, diet, restrictions, followUp, warningSigns.",
+          "options": { "temperature": 0.2 }
+        }
+      },
+      "width": 260,
+      "height": 94
+    },
+    {
+      "id": "gemini-whatsapp-generator",
+      "type": "action",
+      "position": { "x": 680, "y": 400 },
+      "data": {
+        "label": "Gemini WhatsApp & Voice Generator",
+        "toolId": "gemini",
+        "toolData": {
+          "id": "gemini",
+          "displayName": "Gemini WhatsApp & Voice",
+          "type": "chat model",
+          "category": "AI / LLM",
+          "provider": "LLM Models",
+          "operation": "Message a Model",
+          "icon": "api",
+          "description": "Synthesizes emoji-bulleted WhatsApp text summary and 40-word spoken audio narration script in native tongue"
+        },
+        "inputs": {
+          "model": "gemini-2.5-flash",
+          "prompt": "Generate a concise, compassionate WhatsApp care card and a 40-word spoken audio narration script for {{ $json.patientName }} in {{ $json.language }}.",
+          "options": { "temperature": 0.3 }
+        }
+      },
+      "width": 260,
+      "height": 94
+    },
+    {
+      "id": "gemini-qna-guardrail",
+      "type": "action",
+      "position": { "x": 680, "y": 560 },
+      "data": {
+        "label": "Gemini Q&A (Clinical Guardrails)",
+        "toolId": "gemini",
+        "toolData": {
+          "id": "gemini",
+          "displayName": "Gemini Q&A Assistant",
+          "type": "chat model",
+          "category": "AI / LLM",
+          "provider": "LLM Models",
+          "operation": "Message a Model",
+          "icon": "api",
+          "description": "Answers post-discharge recovery questions strictly grounded in patient record, with emergency red-flag interception"
+        },
+        "inputs": {
+          "model": "gemini-2.5-flash",
+          "prompt": "You are MediGuide AI post-discharge clinical assistant. The patient asks: \"{{ $json.question }}\". Ground your answer strictly in their discharge record. If severe red flags (chest pain, high fever, dyspnea) are mentioned, instruct them to call hospital emergency immediately.",
+          "options": { "temperature": 0.3 }
+        }
+      },
+      "width": 260,
+      "height": 94
+    },
+    {
+      "id": "db-commit-node",
+      "type": "action",
+      "position": { "x": 1020, "y": 300 },
+      "data": {
+        "label": "Database Sync & Commit",
+        "toolId": "database",
+        "toolData": {
+          "id": "database",
+          "displayName": "Database Sync & Commit",
+          "category": "Data & Storage",
+          "icon": "database",
+          "description": "Persists generated patient care plans, delivery logs, and chat records into PostgreSQL"
+        },
+        "inputs": {
+          "operation": "UPSERT",
+          "table": "patients"
+        }
+      },
+      "width": 220,
+      "height": 94
+    },
+    {
+      "id": "unified-webhook-response",
+      "type": "action",
+      "position": { "x": 1300, "y": 300 },
+      "data": {
+        "label": "Unified Webhook Response",
+        "toolId": "respondToWebhook",
+        "toolData": {
+          "id": "respondToWebhook",
+          "displayName": "Unified Webhook Response",
+          "category": "Input / Output",
+          "icon": "reply",
+          "description": "Returns standardized JSON response payload back to MediGuide AI frontend"
+        },
+        "inputs": {
+          "respondWith": "JSON",
+          "responseCode": 200,
+          "responseBody": "={\n  \"status\": \"success\",\n  \"route\": \"{{ $('Workflow Action Router').item.json.route }}\",\n  \"data\": \"{{ $json }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+        }
+      },
+      "width": 220,
+      "height": 94
+    }
+  ],
+  "edges": [
+    { "id": "e-trigger-router", "source": "master-webhook-trigger", "target": "master-request-router", "type": "custom" },
+    { "id": "e-router-db-sync", "source": "master-request-router", "target": "clinical-database-node", "type": "custom" },
+    { "id": "e-router-discharge", "source": "master-request-router", "target": "gemini-clinical-processor", "type": "custom" },
+    { "id": "e-router-whatsapp", "source": "master-request-router", "target": "gemini-whatsapp-generator", "type": "custom" },
+    { "id": "e-router-qna", "source": "master-request-router", "target": "gemini-qna-guardrail", "type": "custom" },
+    { "id": "e-discharge-commit", "source": "gemini-clinical-processor", "target": "db-commit-node", "type": "custom" },
+    { "id": "e-db-commit", "source": "clinical-database-node", "target": "db-commit-node", "type": "custom" },
+    { "id": "e-whatsapp-commit", "source": "gemini-whatsapp-generator", "target": "db-commit-node", "type": "custom" },
+    { "id": "e-qna-commit", "source": "gemini-qna-guardrail", "target": "db-commit-node", "type": "custom" },
+    { "id": "e-commit-response", "source": "db-commit-node", "target": "unified-webhook-response", "type": "custom" }
+  ]
+}
