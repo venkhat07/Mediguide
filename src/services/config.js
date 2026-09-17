@@ -2,19 +2,24 @@
 // Central place for backend and SNS Workbench configuration.
 // ---------------------------------------------------------------------------
 
+const env = (typeof import.meta !== 'undefined' && import.meta.env) || (typeof process !== 'undefined' && process.env) || {};
+
 export const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL || 'https://your-sns-workbench-domain.com/webhook'
+  env.VITE_API_BASE_URL || 'https://api.agents.snsihub.ai/webhook'
 ).replace(/\/+$/, '');
 
-export const DISCHARGE_WEBHOOK_URL =
-  import.meta.env.VITE_DISCHARGE_WEBHOOK_URL || `${API_BASE_URL}/api/mediguide/master`;
+export const MASTER_WEBHOOK_URL =
+  env.VITE_DISCHARGE_WEBHOOK_URL ||
+  (API_BASE_URL ? `${API_BASE_URL}/api/mediguide/master` : 'https://api.agents.snsihub.ai/webhook/api/mediguide/master');
+
+export const DISCHARGE_WEBHOOK_URL = MASTER_WEBHOOK_URL;
 
 export const GEMINI_API_KEY =
-  import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyDrY0crZ8bCIv1uj64RMb0FOVZ3u9G-ck0';
+  env.VITE_GEMINI_API_KEY || 'AIzaSyDrY0crZ8bCIv1uj64RMb0FOVZ3u9G-ck0';
 
 // Detect whether a real SNS Workbench URL has been configured
 export const isLiveBackendConfigured = () => {
-  if (import.meta.env.VITE_USE_MOCK === 'true') return false;
+  if (env.VITE_USE_MOCK === 'true') return false;
   if (DISCHARGE_WEBHOOK_URL && DISCHARGE_WEBHOOK_URL.startsWith('http')) return true;
   if (!API_BASE_URL) return false;
   if (

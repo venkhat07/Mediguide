@@ -6,60 +6,41 @@
 // or during development.
 // ---------------------------------------------------------------------------
 
-import { API_BASE_URL, ENDPOINTS, MOCK_DELAY_MS, isLiveBackendConfigured, DISCHARGE_WEBHOOK_URL, GEMINI_API_KEY } from './config';
 import {
-  mockPatients,
-  mockCommunicationHistory,
-  mockConversations,
-  dashboardStats,
-} from '../data/mockData';
+  API_BASE_URL,
+  ENDPOINTS,
+  MOCK_DELAY_MS,
+  isLiveBackendConfigured,
+  DISCHARGE_WEBHOOK_URL,
+  MASTER_WEBHOOK_URL,
+  GEMINI_API_KEY,
+} from './config.js';
+import {
+  getAllPatients,
+  getPatientById,
+  savePatient as dbSavePatient,
+  deletePatient as dbDeletePatient,
+  getPatientCommunications,
+  addPatientCommunication,
+  getPatientConversation,
+  addPatientMessage,
+  computeDashboardStats,
+  mergeRemoteRows,
+  logAuditOperation,
+  getAuditLog,
+} from './database.js';
 
 function delay(ms = MOCK_DELAY_MS) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function loadStoredPatients() {
-  try {
-    const raw = typeof window !== 'undefined' ? localStorage.getItem('medguide_patients') : null;
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const storedMap = new Map(parsed.map((p) => [p.id, p]));
-        for (const mp of mockPatients) {
-          if (!storedMap.has(mp.id)) {
-            storedMap.set(mp.id, mp);
-          } else {
-            const existing = storedMap.get(mp.id);
-            if (existing.language === 'Tamil' && !/[\u0B80-\u0BFF]/.test(existing.patientExplanation || '')) {
-              storedMap.set(mp.id, { ...existing, ...mp });
-            }
-          }
-        }
-        return Array.from(storedMap.values());
-      }
-    }
-  } catch (e) {
-    // ignore
-  }
-  return [...mockPatients];
-}
-
-// In-memory store initialized from local storage or mock store
-let patients = loadStoredPatients();
-
+// Backward compatibility helper
 export function savePatients(newPatients) {
-  patients = newPatients;
-  try {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('medguide_patients', JSON.stringify(newPatients));
-    }
-  } catch (e) {
-    // ignore
+  if (Array.isArray(newPatients)) {
+    newPatients.forEach((p) => dbSavePatient(p));
   }
 }
 
-const communicationHistory = { ...mockCommunicationHistory };
-const conversations = { ...mockConversations };
 const uploadedFiles = {}; // Cache uploaded files by patientId
 
 // Helper for safe JSON fetch to SNS Workbench
@@ -97,71 +78,77 @@ export async function login(email, password) {
 
   if (isLiveBackendConfigured()) {
     try {
-      const result = await postToWebhook(`${API_BASE_URL}${ENDPOINTS.login}`, { email, password });
-      return result.token ? result : { token: 'live-token', hospital: 'St. Jude Memorial Hospital', email };
+      const webhookUrl = MASTER_WEBHOOK_URL || `${API_BASE_URL}/api/mediguide/master`;
+      const result = await postToWebhook(webhookUrl, { action: 'login', email, password }, 8000);
+      if (result?.token) return result;
     } catch (err) {
-      console.warn('[SNS Workbench] Auth endpoint unavailable, using mock login:', err.message);
+      console.warn('[SNS Workbench] Auth endpoint unavailable, using local staff login:', err.message);
     }
   }
 
-  await delay(400);
-  return { token: 'mock-token', hospital: 'St. Jude Memorial Hospital', email };
+  await delay(300);
+  return { token: 'live-session-token', hospital: 'St. Jude Memorial Hospital', email, staffName: 'Dr. Sarah Jenkins' };
 }
 
 export async function getPatients() {
   if (isLiveBackendConfigured()) {
     try {
-      const data = await postToWebhook(`${API_BASE_URL}${ENDPOINTS.patients}`, { action: 'list' });
-      if (Array.isArray(data) && data.length > 0) {
-        patients = data;
-        return data;
-      }
-      if (Array.isArray(data?.data) && data.data.length > 0) {
-        patients = data.data;
-        return data.data;
+      const webhookUrl = MASTER_WEBHOOK_URL || `${API_BASE_URL}/api/mediguide/master`;
+      const data = await postToWebhook(webhookUrl, { action: 'patients-sync' }, 8000);
+      const rows = Array.isArray(data)
+        ? data
+        : (Array.isArray(data?.data)
+            ? data.data
+            : (Array.isArray(data?.rows)
+                ? data.rows
+                : (Array.isArray(data?.result?.rows)
+                    ? data.result.rows
+                    : (Array.isArray(data?.result) ? data.result : null))));
+      if (rows && rows.length > 0) {
+        mergeRemoteRows(rows);
       }
     } catch (err) {
-      console.warn('[SNS Workbench] Get patients webhook error, using local state:', err.message);
+      console.warn('[SNS Workbench] Master webhook patients sync error, using persistent database:', err.message);
     }
   }
 
-  await delay(200);
-  return patients;
+  await delay(100);
+  return getAllPatients();
 }
 
 export async function getPatient(patientId) {
-  if (isLiveBackendConfigured()) {
+  let record = getPatientById(patientId);
+
+  if (isLiveBackendConfigured() && !record) {
     try {
-      const data = await postToWebhook(`${API_BASE_URL}${ENDPOINTS.patients}`, {
-        action: 'get',
-        patientId,
-      });
-      const record = data?.data || data?.patient || data;
-      if (record && record.id === patientId) {
-        patients = patients.map((p) => (p.id === patientId ? { ...p, ...record } : p));
-        return record;
+      const webhookUrl = MASTER_WEBHOOK_URL || `${API_BASE_URL}/api/mediguide/master`;
+      const data = await postToWebhook(
+        webhookUrl,
+        {
+          action: 'get-patient',
+          patientId,
+        },
+        8000
+      );
+      const remoteRecord = data?.data || data?.patient || (data?.id === patientId ? data : null);
+      if (remoteRecord) {
+        record = dbSavePatient(remoteRecord);
       }
     } catch (err) {
       console.warn('[SNS Workbench] Get patient webhook error:', err.message);
     }
   }
 
-  let record = null;
-  try {
-    const cached = sessionStorage.getItem(`patient_${patientId}`);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (parsed && parsed.id === patientId) {
-        record = parsed;
-      }
-    }
-  } catch (e) {
-    // ignore
-  }
-
   if (!record) {
-    await delay(200);
-    record = patients.find((p) => p.id === patientId);
+    try {
+      const cached = sessionStorage.getItem(`patient_${patientId}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.id === patientId) {
+          record = dbSavePatient(parsed);
+        }
+      }
+    } catch (e) {}
   }
 
   if (!record) throw new Error('Patient record not found');
@@ -171,12 +158,8 @@ export async function getPatient(patientId) {
     const regex = SCRIPT_REGEX[record.language];
     if (regex && record.patientExplanation && !regex.test(record.patientExplanation)) {
       try {
-        record = await ensureTargetLanguage(record, record.language);
-        try {
-          sessionStorage.setItem(`patient_${patientId}`, JSON.stringify(record));
-        } catch (e) {}
-        patients = patients.map((p) => (p.id === patientId ? { ...p, ...record } : p));
-        savePatients(patients);
+        const translatedRecord = await ensureTargetLanguage(record, record.language);
+        record = dbSavePatient(translatedRecord);
       } catch (e) {
         console.warn('[MediGuide AI] Auto-translation on getPatient error:', e);
       }
@@ -187,8 +170,10 @@ export async function getPatient(patientId) {
 }
 
 export async function createPatient(data) {
+  const currentPatients = getAllPatients();
+  const newId = data.patientId || `P${1000 + currentPatients.length + 1}`;
   const newPatient = {
-    id: data.patientId || `P${1000 + patients.length + 1}`,
+    id: newId,
     name: data.name,
     phone: data.phone,
     language: data.language || 'English',
@@ -204,27 +189,33 @@ export async function createPatient(data) {
     patientExplanation: '',
   };
 
+  // 1. Immediately persist to persistent database so it's NEVER lost across logins or refreshes
+  const saved = dbSavePatient(newPatient);
+
+  // 2. Dispatch to live SNS Workbench master webhook / PostgreSQL if configured
   if (isLiveBackendConfigured()) {
     try {
-      const result = await postToWebhook(`${API_BASE_URL}${ENDPOINTS.createPatient}`, {
-        action: 'create',
-        ...newPatient,
-      });
-      const created = result?.data || result?.patient || newPatient;
-      savePatients([created, ...patients]);
-      communicationHistory[created.id] = [];
-      conversations[created.id] = [];
-      return created;
+      const webhookUrl = MASTER_WEBHOOK_URL || `${API_BASE_URL}/api/mediguide/master`;
+      const result = await postToWebhook(
+        webhookUrl,
+        {
+          action: 'create-patient',
+          patient: saved,
+          ...saved,
+        },
+        8000
+      );
+      const remoteCreated = result?.data || result?.patient;
+      if (remoteCreated && typeof remoteCreated === 'object') {
+        return dbSavePatient({ ...saved, ...remoteCreated });
+      }
     } catch (err) {
-      console.warn('[SNS Workbench] Create patient webhook error, creating locally:', err.message);
+      console.warn('[SNS Workbench] Create patient webhook error, saved to persistent local database:', err.message);
     }
   }
 
-  await delay(400);
-  savePatients([newPatient, ...patients]);
-  communicationHistory[newPatient.id] = [];
-  conversations[newPatient.id] = [];
-  return newPatient;
+  await delay(200);
+  return saved;
 }
 
 export async function uploadDischargeSummary(patientId, file) {
@@ -393,12 +384,8 @@ export async function translatePatientRecord(patientId, targetLanguage) {
   if (!patient) throw new Error('Patient not found');
   const translated = await ensureTargetLanguage(patient, targetLanguage);
   translated.language = targetLanguage;
-  try {
-    sessionStorage.setItem(`patient_${patientId}`, JSON.stringify(translated));
-  } catch (e) {}
-  patients = patients.map((p) => (p.id === patientId ? { ...p, ...translated } : p));
-  savePatients(patients);
-  return translated;
+  const updated = dbSavePatient({ ...patient, ...translated, language: targetLanguage });
+  return updated;
 }
 
 // Local Smart Clinical Parser for instant extraction or offline fallback
@@ -659,7 +646,7 @@ Respond ONLY with a valid JSON object matching this schema:
 
 // Triggers AI Clinical Processing pipeline in SNS Workbench or Gemini Engine
 export async function processDischargeSummary(patientId, fileOverride, languageOverride, forceOffline = false) {
-  let patient = patients.find((p) => p.id === patientId);
+  let patient = getPatientById(patientId);
   const file = fileOverride || (patientId ? uploadedFiles[patientId] : null);
   const targetLanguage = languageOverride || patient?.language || 'Tamil';
 
@@ -788,7 +775,8 @@ export async function processDischargeSummary(patientId, fileOverride, languageO
 
     // If auto-detect new patient or patient doesn't exist, create a new record
     if (patientId === '__new__' || !patient) {
-      finalPatientId = `P${1000 + patients.length + 1}`;
+      const allCurrent = getAllPatients();
+      finalPatientId = `P${1000 + allCurrent.length + 1}`;
       const newRecord = {
         id: finalPatientId,
         name: finalPatientName,
@@ -799,15 +787,12 @@ export async function processDischargeSummary(patientId, fileOverride, languageO
         whatsappStatus: 'Pending',
         ...processedRecord,
       };
-      savePatients([newRecord, ...patients]);
-      try {
-        sessionStorage.setItem(`patient_${finalPatientId}`, JSON.stringify(newRecord));
-      } catch (e) {}
+      const saved = dbSavePatient(newRecord);
       return {
-        patient: newRecord,
-        summary: newRecord,
-        patient_explanation: newRecord.patientExplanation,
-        communication: { whatsapp_status: newRecord.whatsappStatus || 'pending' },
+        patient: saved,
+        summary: saved,
+        patient_explanation: saved.patientExplanation,
+        communication: { whatsapp_status: saved.whatsappStatus || 'Pending' },
       };
     }
 
@@ -819,17 +804,12 @@ export async function processDischargeSummary(patientId, fileOverride, languageO
       language: targetLanguage,
       processingStatus: 'Completed',
     };
-    savePatients(patients.map((p) => (p.id === patientId ? updatedRecord : p)));
-    try {
-      sessionStorage.setItem(`patient_${patientId}`, JSON.stringify(updatedRecord));
-    } catch (e) {
-      // ignore storage errors
-    }
+    const saved = dbSavePatient(updatedRecord);
     return {
-      patient: updatedRecord,
-      summary: updatedRecord,
-      patient_explanation: updatedRecord.patientExplanation,
-      communication: { whatsapp_status: updatedRecord.whatsappStatus || 'pending' },
+      patient: saved,
+      summary: saved,
+      patient_explanation: saved.patientExplanation,
+      communication: { whatsapp_status: saved.whatsappStatus || 'Pending' },
     };
   }
 
@@ -886,7 +866,8 @@ export async function processDischargeSummary(patientId, fileOverride, languageO
   let finalPatientId = patientId;
 
   if (patientId === '__new__' || !patient) {
-    finalPatientId = `P${1000 + patients.length + 1}`;
+    const allCurrent = getAllPatients();
+    finalPatientId = `P${1000 + allCurrent.length + 1}`;
     const newRecord = {
       id: finalPatientId,
       name: result.name || 'Valued Patient',
@@ -894,32 +875,24 @@ export async function processDischargeSummary(patientId, fileOverride, languageO
       ...result,
       language: targetLanguage,
       processingStatus: 'Completed',
+      whatsappStatus: 'Pending',
     };
-    savePatients([newRecord, ...patients]);
-    try {
-      sessionStorage.setItem(`patient_${finalPatientId}`, JSON.stringify(newRecord));
-    } catch (e) {}
+    const saved = dbSavePatient(newRecord);
     return {
-      patient: newRecord,
-      summary: newRecord,
-      patient_explanation: newRecord.patientExplanation,
-      communication: { whatsapp_status: newRecord.whatsappStatus || 'pending' },
+      patient: saved,
+      summary: saved,
+      patient_explanation: saved.patientExplanation,
+      communication: { whatsapp_status: saved.whatsappStatus || 'Pending' },
     };
   }
 
   const finalRecord = { ...patient, ...result, language: targetLanguage, processingStatus: 'Completed' };
-  savePatients(patients.map((p) => (p.id === patientId ? finalRecord : p)));
-  try {
-    sessionStorage.setItem(`patient_${patientId}`, JSON.stringify(finalRecord));
-  } catch (e) {
-    // ignore storage errors
-  }
-
+  const saved = dbSavePatient(finalRecord);
   return {
-    patient: { id: patientId, name: finalRecord.name, language: targetLanguage },
-    summary: finalRecord,
-    patient_explanation: finalRecord.patientExplanation,
-    communication: { whatsapp_status: finalRecord.whatsappStatus || 'pending' },
+    patient: { id: patientId, name: saved.name, language: targetLanguage },
+    summary: saved,
+    patient_explanation: saved.patientExplanation,
+    communication: { whatsapp_status: saved.whatsappStatus || 'Pending' },
   };
 }
 
@@ -1083,9 +1056,9 @@ export async function generateFullVoiceNoteUrl(patient, summaryText = '') {
   if (current) chunks.push(current);
 
   const isLocal = typeof window !== 'undefined' && (
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname === '::1'
+    window.location?.hostname === 'localhost' ||
+    window.location?.hostname === '127.0.0.1' ||
+    window.location?.hostname === '::1'
   );
 
   const ttsBase = isLocal
@@ -1159,7 +1132,7 @@ export async function generateFullVoiceNoteUrl(patient, summaryText = '') {
 
 // Dispatches real audio voice note directly to patient's WhatsApp via 2Chat, dynamically derived from patient summary and instructions
 export async function sendWhatsAppVoiceNote(patientId, customPhone = '', summaryOverride = '') {
-  let patient = patients.find((p) => p.id === patientId);
+  let patient = getPatientById(patientId);
   try {
     const cached = sessionStorage.getItem(`patient_${patientId}`);
     if (cached) {
@@ -1186,7 +1159,7 @@ export async function sendWhatsAppVoiceNote(patientId, customPhone = '', summary
   const audioUrl = await generateFullVoiceNoteUrl(patient, summaryText);
   console.log(`[MedGuideAI 🎙️ Spoken Care Summary + Instructions URL]:`, audioUrl);
 
-  const endpoint = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+  const endpoint = typeof window !== 'undefined' && window.location?.hostname === 'localhost'
     ? '/api-2chat/open/whatsapp/send-message'
     : 'https://api.p.2chat.io/open/whatsapp/send-message';
 
@@ -1215,15 +1188,16 @@ export async function sendWhatsAppVoiceNote(patientId, customPhone = '', summary
     language: lang,
     contentType: `AI Voice Narration (${lang})`,
     status: 'Delivered',
+    phone: targetPhone,
+    patientName: patient?.name || '',
   };
 
-  communicationHistory[patientId] = [entry, ...(communicationHistory[patientId] || [])];
-  savePatients(patients.map((p) => (p.id === patientId ? { ...p, whatsappStatus: 'Delivered' } : p)));
+  addPatientCommunication(patientId, entry);
   return entry;
 }
 
 export async function sendWhatsAppMessage(patientId, contentType = 'Text explanation', customPhone = '') {
-  let patient = patients.find((p) => p.id === patientId);
+  let patient = getPatientById(patientId);
   try {
     const cached = sessionStorage.getItem(`patient_${patientId}`);
     if (cached) {
@@ -1250,7 +1224,7 @@ export async function sendWhatsAppMessage(patientId, contentType = 'Text explana
 
   // Dispatch rich text message directly to WhatsApp via 2Chat
   try {
-    const endpoint = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    const endpoint = typeof window !== 'undefined' && window.location?.hostname === 'localhost'
       ? '/api-2chat/open/whatsapp/send-message'
       : 'https://api.p.2chat.io/open/whatsapp/send-message';
 
@@ -1293,7 +1267,9 @@ ${patient?.patientExplanation || 'Please take your medicines on time as advised.
 
   if (isLiveBackendConfigured()) {
     try {
-      const response = await postToWebhook(`${API_BASE_URL}${ENDPOINTS.sendWhatsApp}`, {
+      const webhookUrl = MASTER_WEBHOOK_URL || `${API_BASE_URL}/api/mediguide/master`;
+      const response = await postToWebhook(webhookUrl, {
+        action: 'whatsapp-dispatch',
         patientId,
         contentType,
         patientPhone: targetPhone,
@@ -1302,7 +1278,7 @@ ${patient?.patientExplanation || 'Please take your medicines on time as advised.
         dischargeDate: patient?.dischargeDate,
         patientExplanation: patient?.patientExplanation || '',
         medications: patient?.medications || [],
-      });
+      }, 10000);
 
       const currentDateStr = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
       const displayDate = (!response.date || response.date.includes('{{') || response.date.includes('Date()'))
@@ -1312,13 +1288,14 @@ ${patient?.patientExplanation || 'Please take your medicines on time as advised.
       const entry = {
         date: displayDate,
         channel: 'WhatsApp',
-        language: response.language || patient?.language || 'English',
+        language: response?.language || patient?.language || 'English',
         contentType,
-        status: response.status || 'Delivered',
+        status: response?.status || 'Delivered',
+        phone: targetPhone,
+        patientName: patient?.name || '',
       };
 
-      communicationHistory[patientId] = [entry, ...(communicationHistory[patientId] || [])];
-      savePatients(patients.map((p) => (p.id === patientId ? { ...p, whatsappStatus: entry.status } : p)));
+      addPatientCommunication(patientId, entry);
       return entry;
     } catch (err) {
       console.warn('[SNS Workbench] WhatsApp webhook error, using simulation fallback:', err.message);
@@ -1332,9 +1309,10 @@ ${patient?.patientExplanation || 'Please take your medicines on time as advised.
     language: patient?.language || '—',
     contentType,
     status: 'Delivered',
+    phone: targetPhone,
+    patientName: patient?.name || '',
   };
-  communicationHistory[patientId] = [entry, ...(communicationHistory[patientId] || [])];
-  savePatients(patients.map((p) => (p.id === patientId ? { ...p, whatsappStatus: 'Delivered' } : p)));
+  addPatientCommunication(patientId, entry);
   return entry;
 }
 
@@ -1349,13 +1327,13 @@ export async function generateVideo(patientId) {
 }
 
 export async function getCommunicationHistory(patientId) {
-  await delay(200);
-  return communicationHistory[patientId] || [];
+  await delay(100);
+  return getPatientCommunications(patientId);
 }
 
 export async function getConversation(patientId) {
-  await delay(200);
-  return conversations[patientId] || [];
+  await delay(100);
+  return getPatientConversation(patientId);
 }
 
 async function callGeminiQnA(patient, question, targetLanguage) {
@@ -1399,8 +1377,15 @@ Instructions:
 }
 
 export async function askPatientQuestion(patientId, question) {
-  const patient = patients.find((p) => p.id === patientId);
+  const patient = getPatientById(patientId);
   const targetLanguage = patient?.language || 'Tamil';
+
+  const patientMsg = {
+    from: 'patient',
+    text: question,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  };
+  addPatientMessage(patientId, patientMsg);
 
   let rawAnswer = '';
 
@@ -1422,8 +1407,8 @@ export async function askPatientQuestion(patientId, question) {
         question,
       };
 
-      const qnaUrl = `${API_BASE_URL}/api/mediguide/master`;
-      const result = await postToWebhook(qnaUrl, payload);
+      const qnaUrl = MASTER_WEBHOOK_URL || `${API_BASE_URL}/api/mediguide/master`;
+      const result = await postToWebhook(qnaUrl, payload, 12000);
 
       if (result?.text) {
         rawAnswer = result.text;
@@ -1450,12 +1435,6 @@ export async function askPatientQuestion(patientId, question) {
     }
   }
 
-  const patientMsg = {
-    from: 'patient',
-    text: question,
-    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-  };
-
   const finalAnswer = rawAnswer || await translateText(
     'Please take your medication as prescribed in your discharge summary. Drink plenty of water and rest. If symptoms worsen, call the hospital helpline immediately.',
     targetLanguage
@@ -1468,27 +1447,39 @@ export async function askPatientQuestion(patientId, question) {
     status: 'Delivered',
   };
 
-  conversations[patientId] = [...(conversations[patientId] || []), patientMsg, aiMsg];
+  addPatientMessage(patientId, aiMsg);
   return aiMsg;
 }
 
 export async function getDashboardStats() {
   if (isLiveBackendConfigured()) {
     try {
-      const result = await postToWebhook(`${API_BASE_URL}${ENDPOINTS.patients}`, { action: 'stats' });
+      const webhookUrl = MASTER_WEBHOOK_URL || `${API_BASE_URL}/api/mediguide/master`;
+      const result = await postToWebhook(webhookUrl, { action: 'stats' }, 5000);
       if (result?.data) return result.data;
     } catch (err) {
-      console.warn('[SNS Workbench] Stats webhook error, calculating from state:', err.message);
+      // ignore
     }
   }
 
-  await delay(200);
-  return {
-    totalPatients: patients.length,
-    summariesProcessed: patients.filter((p) => p.processingStatus === 'Completed').length,
-    messagesSent: Object.values(communicationHistory).flat().length || 4,
-    pendingProcessing: patients.filter((p) => p.processingStatus !== 'Completed').length,
-  };
+  await delay(100);
+  return computeDashboardStats();
 }
 
-export { API_BASE_URL, ENDPOINTS, isLiveBackendConfigured };
+export {
+  API_BASE_URL,
+  ENDPOINTS,
+  isLiveBackendConfigured,
+  MASTER_WEBHOOK_URL,
+  getAllPatients,
+  getPatientById,
+  dbSavePatient,
+  dbDeletePatient,
+  getPatientCommunications,
+  addPatientCommunication,
+  getPatientConversation,
+  addPatientMessage,
+  computeDashboardStats,
+  logAuditOperation,
+  getAuditLog,
+};

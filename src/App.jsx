@@ -17,12 +17,37 @@ import QnA from './pages/QnA';
 import Settings from './pages/Settings';
 
 function App() {
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('medguide_session') : null;
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
 
   const handleLogin = (data) => {
-    setSession({ hospital: data.hospital, staffName: 'Hospital Staff', email: data.email });
+    const sess = {
+      hospital: data?.hospital || 'St. Jude Memorial Hospital',
+      staffName: data?.staffName || 'Dr. Sarah Jenkins',
+      email: data?.email || 'dr.jenkins@stjudehospital.org',
+    };
+    setSession(sess);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('medguide_session', JSON.stringify(sess));
+      }
+    } catch {}
   };
-  const handleLogout = () => setSession(null);
+
+  const handleLogout = () => {
+    setSession(null);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('medguide_session');
+      }
+    } catch {}
+  };
 
   return (
     <ToastProvider>
