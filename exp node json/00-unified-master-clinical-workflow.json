@@ -1,7 +1,7 @@
 {
   "_platform": "agentbuilder",
   "_version": 1,
-  "_exportedAt": "2026-09-17T10:09:21.953Z",
+  "_exportedAt": "2026-09-17T13:36:24.074Z",
   "_fingerprint": "YWN0aW9uOmNvZGUuZXhlY3V0ZXxhY3Rpb246ZXh0cmFjdC1mcm9tLWZpbGUuZXh0",
   "nodes": [
     {
@@ -7585,211 +7585,190 @@
   "edges": [
     {
       "id": "reactflow__edge-webhook-master-01-switch-master-02",
+      "data": {},
+      "type": "custom",
       "source": "webhook-master-01",
-      "target": "switch-master-02",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "switch-master-02"
     },
     {
-      "id": "reactflow__edge-switch-master-02-b0-extract-pdf-02",
+      "id": "reactflow__edge-switch-master-02-b0-extract-pdf-02output-0",
+      "data": {},
+      "type": "custom",
       "source": "switch-master-02",
       "target": "b0-extract-pdf-02",
-      "sourceHandle": "0",
-      "targetHandle": "main",
-      "type": "custom"
+      "sourceHandle": "output-0"
     },
     {
-      "id": "reactflow__edge-switch-master-02-b1-postgres-fetch-02",
+      "id": "reactflow__edge-switch-master-02-b1-postgres-fetch-02output-1",
+      "data": {},
+      "type": "custom",
       "source": "switch-master-02",
       "target": "b1-postgres-fetch-02",
-      "sourceHandle": "1",
-      "targetHandle": "main",
-      "type": "custom"
+      "sourceHandle": "output-1"
     },
     {
-      "id": "reactflow__edge-switch-master-02-b2-postgres-load-ehr-02",
+      "id": "reactflow__edge-switch-master-02-b2-postgres-load-ehr-02output-2",
+      "data": {},
+      "type": "custom",
       "source": "switch-master-02",
       "target": "b2-postgres-load-ehr-02",
-      "sourceHandle": "2",
-      "targetHandle": "main",
-      "type": "custom"
+      "sourceHandle": "output-2"
     },
     {
-      "id": "reactflow__edge-switch-master-02-b3-extractor-rx-02",
+      "id": "reactflow__edge-switch-master-02-b3-extractor-rx-02output-3",
+      "data": {},
+      "type": "custom",
       "source": "switch-master-02",
       "target": "b3-extractor-rx-02",
-      "sourceHandle": "3",
-      "targetHandle": "main",
-      "type": "custom"
+      "sourceHandle": "output-3"
     },
     {
-      "id": "reactflow__edge-switch-master-02-b4-postgres-sync-patients-01",
+      "id": "reactflow__edge-switch-master-02-b4-postgres-sync-patients-01output-4",
+      "data": {},
+      "type": "custom",
       "source": "switch-master-02",
       "target": "b4-postgres-sync-patients-01",
-      "sourceHandle": "4",
-      "targetHandle": "main",
-      "type": "custom"
+      "sourceHandle": "output-4"
     },
     {
       "id": "reactflow__edge-b0-extract-pdf-02-b0-extractor-entities-03",
+      "data": {},
+      "type": "custom",
       "source": "b0-extract-pdf-02",
-      "target": "b0-extractor-entities-03",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "b0-extractor-entities-03"
     },
     {
       "id": "reactflow__edge-b0-extractor-entities-03-b0-gemini-simplifier-05",
+      "data": {},
+      "type": "custom",
       "source": "b0-extractor-entities-03",
-      "target": "b0-gemini-simplifier-05",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "b0-gemini-simplifier-05"
     },
     {
       "id": "reactflow__edge-b0-gemini-simplifier-05-b0-code-format-06",
+      "data": {},
+      "type": "custom",
       "source": "b0-gemini-simplifier-05",
-      "target": "b0-code-format-06",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "b0-code-format-06"
     },
     {
       "id": "reactflow__edge-b0-code-format-06-b0-postgres-save-07",
+      "data": {},
+      "type": "custom",
       "source": "b0-code-format-06",
-      "target": "b0-postgres-save-07",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "b0-postgres-save-07"
     },
     {
       "id": "reactflow__edge-b0-postgres-save-07-response-master-final",
+      "data": {},
+      "type": "custom",
       "source": "b0-postgres-save-07",
-      "target": "response-master-final",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "response-master-final"
     },
     {
       "id": "reactflow__edge-b1-postgres-fetch-02-b1-code-wa-formatter-03",
+      "data": {},
+      "type": "custom",
       "source": "b1-postgres-fetch-02",
-      "target": "b1-code-wa-formatter-03",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "b1-code-wa-formatter-03"
     },
     {
       "id": "reactflow__edge-b1-code-wa-formatter-03-b1-wa-send-text-04",
+      "data": {},
+      "type": "custom",
       "source": "b1-code-wa-formatter-03",
-      "target": "b1-wa-send-text-04",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "b1-wa-send-text-04"
     },
     {
       "id": "reactflow__edge-b1-wa-send-text-04-b1-wa-send-audio-05",
+      "data": {},
+      "type": "custom",
       "source": "b1-wa-send-text-04",
-      "target": "b1-wa-send-audio-05",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "b1-wa-send-audio-05"
     },
     {
       "id": "reactflow__edge-b1-wa-send-audio-05-b1-postgres-update-status-06",
+      "data": {},
+      "type": "custom",
       "source": "b1-wa-send-audio-05",
-      "target": "b1-postgres-update-status-06",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "b1-postgres-update-status-06"
     },
     {
       "id": "reactflow__edge-b1-postgres-update-status-06-response-master-final",
+      "data": {},
+      "type": "custom",
       "source": "b1-postgres-update-status-06",
-      "target": "response-master-final",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "response-master-final"
     },
     {
       "id": "reactflow__edge-b2-postgres-load-ehr-02-b2-gemini-clinical-qa-03",
+      "data": {},
+      "type": "custom",
       "source": "b2-postgres-load-ehr-02",
-      "target": "b2-gemini-clinical-qa-03",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "b2-gemini-clinical-qa-03"
     },
     {
       "id": "reactflow__edge-b2-gemini-clinical-qa-03-b2-guardrails-qa-04",
+      "data": {},
+      "type": "custom",
       "source": "b2-gemini-clinical-qa-03",
-      "target": "b2-guardrails-qa-04",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "b2-guardrails-qa-04"
     },
     {
       "id": "reactflow__edge-b2-guardrails-qa-04-b2-code-format-qa-05",
+      "data": {},
+      "type": "custom",
       "source": "b2-guardrails-qa-04",
-      "target": "b2-code-format-qa-05",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "b2-code-format-qa-05"
     },
     {
       "id": "reactflow__edge-b2-code-format-qa-05-b2-postgres-log-qa-06",
+      "data": {},
+      "type": "custom",
       "source": "b2-code-format-qa-05",
-      "target": "b2-postgres-log-qa-06",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "b2-postgres-log-qa-06"
     },
     {
       "id": "reactflow__edge-b2-postgres-log-qa-06-response-master-final",
+      "data": {},
+      "type": "custom",
       "source": "b2-postgres-log-qa-06",
-      "target": "response-master-final",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "response-master-final"
     },
     {
       "id": "reactflow__edge-b3-extractor-rx-02-b3-postgres-check-inventory-03",
+      "data": {},
+      "type": "custom",
       "source": "b3-extractor-rx-02",
-      "target": "b3-postgres-check-inventory-03",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "b3-postgres-check-inventory-03"
     },
     {
       "id": "reactflow__edge-b3-postgres-check-inventory-03-b3-gemini-pharmacology-04",
+      "data": {},
+      "type": "custom",
       "source": "b3-postgres-check-inventory-03",
-      "target": "b3-gemini-pharmacology-04",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "b3-gemini-pharmacology-04"
     },
     {
       "id": "reactflow__edge-b3-gemini-pharmacology-04-b3-postgres-deduct-stock-05",
+      "data": {},
+      "type": "custom",
       "source": "b3-gemini-pharmacology-04",
-      "target": "b3-postgres-deduct-stock-05",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "b3-postgres-deduct-stock-05"
     },
     {
       "id": "reactflow__edge-b3-postgres-deduct-stock-05-response-master-final",
+      "data": {},
+      "type": "custom",
       "source": "b3-postgres-deduct-stock-05",
-      "target": "response-master-final",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "response-master-final"
     },
     {
       "id": "reactflow__edge-b4-postgres-sync-patients-01-response-master-final",
+      "data": {},
+      "type": "custom",
       "source": "b4-postgres-sync-patients-01",
-      "target": "response-master-final",
-      "sourceHandle": "main",
-      "targetHandle": "main",
-      "type": "custom"
+      "target": "response-master-final"
     }
   ]
 }
