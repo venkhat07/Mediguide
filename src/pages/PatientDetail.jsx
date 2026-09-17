@@ -112,9 +112,9 @@ export default function PatientDetail() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {patient.diagnosis.map((d) => (
+                  {(Array.isArray(patient.diagnosis) ? patient.diagnosis : (patient.diagnosis ? [patient.diagnosis] : ['General Clinical Care'])).map((d, idx) => (
                     <span 
-                      key={d} 
+                      key={typeof d === 'string' ? d : idx} 
                       style={{ 
                         background: '#e0f2fe', 
                         color: '#0369a1', 
@@ -125,7 +125,7 @@ export default function PatientDetail() {
                         border: '1px solid #bae6fd'
                       }}
                     >
-                      {d}
+                      {typeof d === 'string' ? d : (d?.name || JSON.stringify(d))}
                     </span>
                   ))}
                 </div>
@@ -139,25 +139,31 @@ export default function PatientDetail() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {patient.medications.map((m) => (
-                    <div 
-                      key={m.name} 
-                      style={{ 
-                        background: '#f8fafc', 
-                        padding: '12px 16px', 
-                        borderRadius: '10px', 
-                        border: '1px solid #e2e8f0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                      }}
-                    >
-                      <div style={{ fontWeight: 700, fontSize: '14.5px', color: '#0f172a' }}>{m.name}</div>
-                      <div style={{ fontSize: '13px', color: '#0d9488', fontWeight: 600 }}>
-                        {m.dosage} • {m.frequency} • {m.duration}
+                  {Array.isArray(patient.medications) && patient.medications.length > 0 ? (
+                    patient.medications.map((m, idx) => (
+                      <div 
+                        key={m?.name || idx} 
+                        style={{ 
+                          background: '#f8fafc', 
+                          padding: '12px 16px', 
+                          borderRadius: '10px', 
+                          border: '1px solid #e2e8f0',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, fontSize: '14.5px', color: '#0f172a' }}>{m?.name || 'Prescribed Medicine'}</div>
+                        <div style={{ fontSize: '13px', color: '#0d9488', fontWeight: 600 }}>
+                          {m?.dosage || 'As directed'} • {m?.frequency || 'Standard'} • {m?.duration || 'Course'}
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div style={{ padding: '12px 16px', background: '#f8fafc', borderRadius: '8px', color: '#64748b', fontSize: '13px', fontStyle: 'italic' }}>
+                      No discharge medications documented.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 

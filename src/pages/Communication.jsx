@@ -395,7 +395,7 @@ ${patient.patientExplanation || 'Please follow your prescribed care plan and tak
 
                 {/* 2. Medications Bubble */}
                 <div className="chat-bubble hospital">
-                  <div><strong>📋 Diagnosis:</strong> {patient.diagnosis ? patient.diagnosis.join(', ') : 'Cardiology Discharge'}</div>
+                  <div><strong>📋 Diagnosis:</strong> {Array.isArray(patient.diagnosis) ? patient.diagnosis.join(', ') : (patient.diagnosis || 'Clinical Discharge Care')}</div>
                   {patient.medications && patient.medications.length > 0 && (
                     <div style={{ marginTop: '6px' }}>
                       <strong>💊 Prescriptions:</strong>

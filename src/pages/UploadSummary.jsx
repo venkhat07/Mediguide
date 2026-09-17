@@ -5,7 +5,7 @@ import ProcessingSteps, { STEPS } from '../components/ProcessingSteps';
 import { getPatients, uploadDischargeSummary, processDischargeSummary } from '../services/api';
 import { useToast } from '../components/Toast';
 import { LANGUAGES } from '../data/mockData';
-import { FileUp, User, Globe, Calendar, Sparkles, ArrowRight } from 'lucide-react';
+import { FileUp, User, Globe, Calendar, Sparkles, ArrowRight, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function UploadSummary() {
   const [patients, setPatients] = useState([]);
@@ -14,6 +14,7 @@ export default function UploadSummary() {
   const [file, setFile] = useState(null);
   const [stepIndex, setStepIndex] = useState(-1);
   const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState(null);
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const showToast = useToast();
@@ -41,6 +42,7 @@ export default function UploadSummary() {
   }, [selectedPatient]);
 
   const handleSelectSample = (sampleType) => {
+    setError(null);
     const isCardio = sampleType === 'cardiology';
     const fileName = isCardio ? 'Cardiology_Discharge_Report.pdf' : 'Orthopedic_Surgery_Notes.pdf';
     const sampleContent = isCardio
@@ -71,23 +73,58 @@ Warning Signs: Incision redness or swelling, high fever (>101°F), severe calf p
     showToast(`Loaded ${isCardio ? 'Cardiology (Rajesh Verma)' : 'Orthopedic (Arun Raj)'} sample document`, 'info');
   };
 
-  const runProcessing = async () => {
+  const runProcessing = async (forceOffline = false) => {
     if (!patientId || !file) return;
+    setError(null);
     const finalLang = targetLang || selectedPatient?.language || 'Tamil';
     setProcessing(true);
-    if (patientId !== '__new__') {
-      await uploadDischargeSummary(patientId, file);
+
+    try {
+      if (patientId !== '__new__') {
+        await uploadDischargeSummary(patientId, file);
+      }
+      for (let i = 0; i < 3; i += 1) {
+        setStepIndex(i);
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((r) => setTimeout(r, 450));
+      }
+
+      const result = await processDischargeSummary(patientId, file, finalLang, forceOffline);
+
+      for (let i = 3; i < STEPS.length; i += 1) {
+        setStepIndex(i);
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((r) => setTimeout(r, 250));
+      }
+
+      setStepIndex(STEPS.length);
+      showToast(`Discharge summary successfully processed in ${finalLang}`, 'success');
+      const finalId = result?.patient?.id || patientId;
+      setTimeout(() => navigate(`/patients/${finalId}/summary`), 500);
+    } catch (err) {
+      console.error('[UploadSummary] Clinical processing error:', err);
+      setProcessing(false);
+      setStepIndex(-1);
+
+      const msg = err?.message || 'Processing failed';
+      const is503 = msg.includes('503') || msg.toLowerCase().includes('high demand') || msg.toLowerCase().includes('busy');
+      const isAuth = msg.includes('403') || msg.includes('leaked') || msg.toLowerCase().includes('permission');
+
+      setError({
+        is503,
+        title: is503
+          ? 'AI Model Temporarily Busy (HTTP 503)'
+          : (isAuth ? 'External AI Engine Unavailable' : 'Clinical AI Processing Issue'),
+        message: is503
+          ? 'The Google Gemini AI service is currently experiencing high worldwide demand spikes (HTTP 503). Spikes in demand are temporary. You can click Try Again, or extract patient data instantly using the Clinical Smart Parser.'
+          : (isAuth
+            ? 'The remote AI model endpoint is temporarily unreachable. You can retry or proceed immediately using the Clinical Smart Parser.'
+            : `${msg}. Please retry or extract directly using the Clinical Smart Parser.`),
+        canOffline: true,
+      });
+
+      showToast(is503 ? 'AI Model busy (HTTP 503). Spikes are temporary.' : 'Processing error: ' + msg, 'error');
     }
-    for (let i = 0; i < STEPS.length; i += 1) {
-      setStepIndex(i);
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise((r) => setTimeout(r, 600));
-    }
-    const result = await processDischargeSummary(patientId, file, finalLang);
-    setStepIndex(STEPS.length);
-    showToast(`Discharge summary successfully processed in ${finalLang}`, 'success');
-    const finalId = result?.patient?.id || patientId;
-    setTimeout(() => navigate(`/patients/${finalId}/summary`), 500);
   };
 
   return (
@@ -100,6 +137,70 @@ Warning Signs: Incision redness or swelling, high fever (>101°F), severe calf p
       </div>
 
       <div className="card card-pad">
+        {error && (
+          <div style={{
+            background: '#fff1f2',
+            border: '1px solid #fecdd3',
+            borderRadius: '12px',
+            padding: '18px 20px',
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '14px',
+            boxShadow: '0 4px 6px -1px rgba(225, 29, 72, 0.05)'
+          }}>
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '50%',
+              background: '#ffe4e6',
+              color: '#e11d48',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              marginTop: '2px'
+            }}>
+              <AlertTriangle size={22} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: '15px', color: '#9f1239', marginBottom: '4px' }}>
+                {error.title}
+              </div>
+              <div style={{ fontSize: '13.5px', color: '#881337', lineHeight: '1.5', marginBottom: '14px' }}>
+                {error.message}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                <button
+                  onClick={() => runProcessing(false)}
+                  className="btn btn-primary"
+                  style={{ padding: '8px 16px', fontSize: '13px', background: '#0d9488', borderColor: '#0d9488' }}
+                >
+                  <RefreshCw size={14} />
+                  <span>Try Again</span>
+                </button>
+                {error.canOffline && (
+                  <button
+                    onClick={() => runProcessing(true)}
+                    className="btn btn-secondary"
+                    style={{ padding: '8px 16px', fontSize: '13px', borderColor: '#fda4af', color: '#9f1239', background: '#ffffff' }}
+                  >
+                    <Sparkles size={14} color="#e11d48" />
+                    <span>Continue with Clinical Smart Parser</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setError(null)}
+                  className="btn btn-secondary"
+                  style={{ padding: '8px 14px', fontSize: '13px' }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {!processing ? (
           <>
             <div className="field">
@@ -199,7 +300,7 @@ Warning Signs: Incision redness or swelling, high fever (>101°F), severe calf p
                 className="btn btn-primary btn-block"
                 style={{ padding: '14px', fontSize: '15px' }}
                 disabled={!patientId || !file}
-                onClick={runProcessing}
+                onClick={() => runProcessing(false)}
               >
                 <Sparkles size={18} />
                 <span>Run AI Medical Simplification & Translation</span>
