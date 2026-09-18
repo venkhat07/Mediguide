@@ -714,7 +714,7 @@ export async function processDischargeSummary(patientId, fileOverride, languageO
           const medsRaw = rootItem.medications || patientData.medications || [];
           const medsList = Array.isArray(medsRaw) ? medsRaw : (medsRaw ? [medsRaw] : []);
 
-          const expl = rootItem.patientExplanation || rootItem.whatsappPreview || rootItem.voiceScript || patientData.patientExplanation || '';
+          const expl = rootItem.patientExplanation || rootItem.patient_explanation || rootItem.whatsappPreview || rootItem.whatsapp_preview || rootItem.voiceScript || rootItem.voice_script || patientData.patientExplanation || patientData.patient_explanation || '';
 
           processedRecord = {
             ...patientData,
@@ -722,12 +722,16 @@ export async function processDischargeSummary(patientId, fileOverride, languageO
             name: patientData.name || patientData.patient_name || patient?.name || 'Patient',
             mrn: patientData.mrn || patient?.mrn || 'MRN-P1008',
             language: patientData.language || patientData.preferred_language || targetLanguage,
+            dischargeDate: patientData.dischargeDate || patientData.discharge_date || patient?.dischargeDate || new Date().toISOString().split('T')[0],
             diagnosis: diagList,
             medications: medsList,
-            diet: rootItem.dietaryGuidelines || rootItem.diet || patientData.diet || [],
-            restrictions: rootItem.activityRestrictions || rootItem.restrictions || patientData.restrictions || [],
-            followUp: rootItem.followUp || patientData.followUp || [],
+            diet: rootItem.dietaryGuidelines || rootItem.dietary_guidelines || rootItem.diet || patientData.diet || patientData.dietary_guidelines || [],
+            restrictions: rootItem.activityRestrictions || rootItem.activity_restrictions || rootItem.restrictions || patientData.restrictions || patientData.activity_restrictions || [],
+            followUp: rootItem.followUp || rootItem.follow_up || patientData.followUp || patientData.follow_up || [],
+            warningSigns: rootItem.warningSigns || rootItem.warning_signs || patientData.warningSigns || patientData.warning_signs || [],
             patientExplanation: expl,
+            whatsappPreview: rootItem.whatsappPreview || rootItem.whatsapp_preview || expl,
+            voiceScript: rootItem.voiceScript || rootItem.voice_script || expl,
           };
         }
       } catch (err) {
