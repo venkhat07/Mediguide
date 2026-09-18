@@ -463,51 +463,14 @@ export function parseClinicalDocumentLocally(rawText, targetLanguage = 'Tamil', 
     warningSigns = warnMatch[1].split(/[,.;]/).map((w) => w.trim()).filter((w) => w.length > 2);
   }
 
-  // Fallback defaults based on document keywords if text was sparse
+  // If no diagnoses could be extracted from unstructured text, derive clean title from document name
   if (!diagnoses.length) {
-    if (docLower.includes('cardio') || docLower.includes('heart') || content.toLowerCase().includes('coronary')) {
-      diagnoses = ['Cardiovascular Recovery & Stent Care'];
-      name = name || 'Rajesh Verma';
-      if (!medications.length) {
-        medications = [
-          { name: 'Aspirin', dosage: '75 mg', frequency: 'Once daily with lunch', duration: '30 days', explanation: 'Prevents blood clot formation.' },
-          { name: 'Atorvastatin', dosage: '20 mg', frequency: 'Once daily at bedtime', duration: '30 days', explanation: 'Regulates blood lipids and stabilizes arteries.' },
-        ];
-      }
-      if (!diet.length) diet = ['Low sodium and heart-friendly balanced diet', 'Avoid deep-fried foods and refined sugars'];
-      if (!restrictions.length) restrictions = ['No heavy weight lifting for 2 weeks', 'Light gentle walking 20 minutes daily'];
-      if (!followUp.length) followUp = ['Cardiology clinic review in 2 weeks with repeat ECG report'];
-      if (!warningSigns.length) warningSigns = ['Sudden chest tightness', 'Shortness of breath', 'Unexplained dizziness or sweating'];
-    } else if (docLower.includes('ortho') || docLower.includes('knee') || docLower.includes('surgery') || content.toLowerCase().includes('meniscal')) {
-      diagnoses = ['Right Knee Meniscal Arthroscopy & Recovery'];
-      name = name || 'Arun Raj';
-      if (!medications.length) {
-        medications = [
-          { name: 'Paracetamol', dosage: '650 mg', frequency: 'Every 6 hours as needed for pain', duration: '5 days', explanation: 'Relieves surgical site discomfort.' },
-          { name: 'Pantoprazole', dosage: '40 mg', frequency: 'Once daily before breakfast', duration: '5 days', explanation: 'Protects stomach lining.' },
-        ];
-      }
-      if (!diet.length) diet = ['High protein recovery diet with fresh vegetables and plenty of water'];
-      if (!restrictions.length) restrictions = ['No heavy lifting for 4 weeks', 'Use crutches for 2 weeks', 'Avoid strenuous exercise'];
-      if (!followUp.length) followUp = ['Suture removal in 7 days at Orthopedic Clinic'];
-      if (!warningSigns.length) warningSigns = ['Incision redness or swelling', 'High fever (>101°F)', 'Severe calf pain'];
-    } else {
-      diagnoses = ['General Clinical Care & Recovery'];
-      name = name || 'Valued Patient';
-      if (!medications.length) {
-        medications = [
-          { name: 'Prescribed Regimen', dosage: 'As directed', frequency: 'Daily after meals', duration: '5 days', explanation: 'Take prescribed dose after meals.' },
-        ];
-      }
-      if (!diet.length) diet = ['Hydrating, nutrient-rich balanced diet'];
-      if (!restrictions.length) restrictions = ['Adequate rest for 3 to 5 days', 'Avoid heavy physical exertion'];
-      if (!followUp.length) followUp = ['Routine follow-up in 10 days at Outpatient Clinic'];
-      if (!warningSigns.length) warningSigns = ['High fever over 101°F', 'Severe dizziness or difficulty breathing'];
-    }
+    const cleanDocName = docName ? docName.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ') : '';
+    diagnoses = [cleanDocName || 'Clinical Discharge Assessment'];
   }
 
-  const patientName = name || 'Valued Patient';
-  const explanation = `Hello ${patientName}, here are your post-discharge instructions. Please take all prescribed medications on time, adhere to your activity guidelines, and visit the hospital for your scheduled follow-up.`;
+  const patientName = name || 'Patient';
+  const explanation = `Post-discharge clinical guidance for ${patientName}. Please follow the medication directions, dietary advice, and safety precautions as documented in your discharge record.`;
 
   return {
     patientName,
@@ -702,11 +665,32 @@ export async function processDischargeSummary(patientId, fileOverride, languageO
         const webhookUrl = DISCHARGE_WEBHOOK_URL || `${API_BASE_URL}/api/mediguide/master`;
         console.log('[MedGuideAI 🌐] Sending payload to live SNS Workbench webhook:', webhookUrl);
 
-        const result = await postToWebhook(webhookUrl, payload, 45000);
+        let result;
+        try {
+          result = await postToWebhook(webhookUrl, payload, 45000);
+        } catch (postErr) {
+          if (webhookUrl.includes('/webhook/')) {
+            const testUrl = webhookUrl.replace('/webhook/', '/webhook-test/');
+            console.log('[MedGuideAI 🔄] Retrying via SNS Workbench test webhook:', testUrl);
+            result = await postToWebhook(testUrl, payload, 45000);
+          } else {
+            throw postErr;
+          }
+        }
         console.log('[MedGuideAI 📥] Live execution response received from SNS Workbench:', result);
 
-        const rootItem = Array.isArray(result) ? result[0] : (result?.data || result);
-        if (rootItem && (rootItem.diagnosis || rootItem.diagnoses || rootItem.patient?.diagnosis)) {
+        let rootItem = null;
+        if (Array.isArray(result)) {
+          rootItem = result[0];
+        } else if (result?.output?.items && Array.isArray(result.output.items)) {
+          rootItem = result.output.items[0]?.json || result.output.items[0];
+        } else if (result?.items && Array.isArray(result.items)) {
+          rootItem = result.items[0]?.json || result.items[0];
+        } else {
+          rootItem = result?.data || result;
+        }
+
+        if (rootItem && (rootItem.diagnosis || rootItem.diagnoses || rootItem.patient_explanation || rootItem.patientExplanation || rootItem.patient?.diagnosis)) {
           const patientData = rootItem.patient || rootItem;
           const diagRaw = rootItem.diagnosis || rootItem.diagnoses || patientData.diagnosis || patientData.diagnoses;
           const diagList = Array.isArray(diagRaw) ? diagRaw : (diagRaw ? [diagRaw] : []);
@@ -719,9 +703,9 @@ export async function processDischargeSummary(patientId, fileOverride, languageO
           processedRecord = {
             ...patientData,
             id: patientData.id || patientData.mrn || patientId,
-            name: patientData.name || patientData.patient_name || patient?.name || 'Patient',
+            name: (patientData.name && patientData.name !== 'Patient') ? patientData.name : (patientData.patient_name || patient?.name || 'Patient'),
             mrn: patientData.mrn || patient?.mrn || 'MRN-P1008',
-            language: patientData.language || patientData.preferred_language || targetLanguage,
+            language: targetLanguage,
             dischargeDate: patientData.dischargeDate || patientData.discharge_date || patient?.dischargeDate || new Date().toISOString().split('T')[0],
             diagnosis: diagList,
             medications: medsList,
@@ -761,7 +745,7 @@ export async function processDischargeSummary(patientId, fileOverride, languageO
     if (lastExecutionError) {
       throw lastExecutionError;
     }
-    throw new Error('Google Generative AI service is temporarily experiencing high worldwide demand (HTTP 503).');
+    throw new Error('Clinical AI service is currently unavailable. Please verify the SNS Workbench workflow execution.');
   }
 
   // Fallback to local parsing if offline was requested
@@ -775,7 +759,7 @@ export async function processDischargeSummary(patientId, fileOverride, languageO
     console.log('[MedGuideAI ✨] Successfully applied AI clinical summary in ' + targetLanguage + ':', processedRecord);
 
     let finalPatientId = patientId;
-    let finalPatientName = processedRecord.patientName || patient?.name || 'Valued Patient';
+    let finalPatientName = processedRecord.patientName || patient?.name || 'Patient';
 
     // If auto-detect new patient or patient doesn't exist, create a new record
     if (patientId === '__new__' || !patient) {
@@ -817,87 +801,7 @@ export async function processDischargeSummary(patientId, fileOverride, languageO
     };
   }
 
-  // Dynamic clinical fallback: never uses hardcoded dummy, always matches actual patient/document
-  await delay(600);
-  const docTitle = file?.name || 'Clinical Discharge Report';
-  const isOrtho = docTitle.toLowerCase().includes('ortho') || docTitle.toLowerCase().includes('surgery') || docTitle.toLowerCase().includes('knee');
-  const isCardio = docTitle.toLowerCase().includes('cardio') || docTitle.toLowerCase().includes('heart');
-
-  let baseResult = null;
-  if (isOrtho) {
-    baseResult = {
-      name: patient?.name || 'Patient',
-      diagnosis: ['Right Knee Meniscal Repair & Arthroscopic Recovery'],
-      medications: [
-        { name: 'Paracetamol', dosage: '650 mg', frequency: 'Every 6 hours if needed for pain', duration: '5 days', explanation: 'Relieves surgical site pain and discomfort.' },
-        { name: 'Pantoprazole', dosage: '40 mg', frequency: 'Once daily before breakfast', duration: '5 days', explanation: 'Protects the stomach while recovering.' },
-      ],
-      diet: ['High protein recovery diet with green vegetables', 'Maintain adequate fluid intake and drink warm water'],
-      restrictions: ['No heavy lifting for 4 weeks', 'Use crutches and avoid strenuous exertion for 2 weeks'],
-      followUp: ['Suture removal in 7 days at Orthopedic Clinic'],
-      warningSigns: ['Redness, severe swelling or discharge at incision', 'Fever over 101°F', 'Severe calf pain or breathlessness'],
-      patientExplanation: 'Your orthopedic procedure went smoothly. Keep your leg elevated, take your medicines on time, use crutches, and visit the hospital in 7 days for stitch removal.',
-    };
-  } else if (isCardio) {
-    baseResult = {
-      name: patient?.name || 'Patient',
-      diagnosis: ['Cardiovascular Evaluation & Recovery'],
-      medications: [
-        { name: 'Cardio-Protective Regimen', dosage: 'As Prescribed', frequency: 'Once daily in the morning', duration: '30 days', explanation: 'Supports healthy cardiac recovery.' },
-      ],
-      diet: ['Low sodium, heart-healthy balanced diet', 'Fresh vegetables and fruits'],
-      restrictions: ['Avoid heavy lifting for 2 weeks', 'Light gentle walking 20 minutes daily'],
-      followUp: ['Cardiology review clinic in 2 weeks'],
-      warningSigns: ['Sudden chest discomfort', 'Shortness of breath', 'Unusual palpitations or dizziness'],
-      patientExplanation: 'Your cardiovascular evaluation is complete. Follow your prescribed recovery plan, eat a low-salt diet, walk gently each day, and visit the clinic in 2 weeks.',
-    };
-  } else {
-    baseResult = {
-      name: patient?.name || 'Patient',
-      diagnosis: ['General Clinical Recovery & Observation'],
-      medications: [
-        { name: 'Post-Discharge Recovery Regimen', dosage: 'As directed', frequency: 'Daily after meals', duration: '7 days', explanation: 'Take prescribed dose after meals with water.' },
-      ],
-      diet: ['Hydrating, nutrient-rich balanced diet', 'Avoid spicy or oily foods'],
-      restrictions: ['Adequate rest for 3 to 5 days', 'Avoid strenuous physical activity'],
-      followUp: ['Routine follow-up in 10 days at Outpatient Clinic'],
-      warningSigns: ['High fever over 101°F', 'Severe dizziness or weakness', 'Persistent vomiting or shortness of breath'],
-      patientExplanation: 'Your treatment at the hospital is complete. Please rest well, take your prescribed medication on time, stay hydrated, and attend your follow-up checkup.',
-    };
-  }
-
-  const result = await ensureTargetLanguage(baseResult, targetLanguage);
-  let finalPatientId = patientId;
-
-  if (patientId === '__new__' || !patient) {
-    const allCurrent = getAllPatients();
-    finalPatientId = `P${1000 + allCurrent.length + 1}`;
-    const newRecord = {
-      id: finalPatientId,
-      name: result.name || 'Valued Patient',
-      phone: '+91 89036 43218',
-      ...result,
-      language: targetLanguage,
-      processingStatus: 'Completed',
-      whatsappStatus: 'Pending',
-    };
-    const saved = dbSavePatient(newRecord);
-    return {
-      patient: saved,
-      summary: saved,
-      patient_explanation: saved.patientExplanation,
-      communication: { whatsapp_status: saved.whatsappStatus || 'Pending' },
-    };
-  }
-
-  const finalRecord = { ...patient, ...result, language: targetLanguage, processingStatus: 'Completed' };
-  const saved = dbSavePatient(finalRecord);
-  return {
-    patient: { id: patientId, name: saved.name, language: targetLanguage },
-    summary: saved,
-    patient_explanation: saved.patientExplanation,
-    communication: { whatsapp_status: saved.whatsappStatus || 'Pending' },
-  };
+  throw lastExecutionError || new Error('No clinical findings could be extracted from this document.');
 }
 
 // Builds comprehensive spoken narration matching the summary and instructions sent in WhatsApp
