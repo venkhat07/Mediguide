@@ -61,6 +61,10 @@ async function postToWebhook(url, payload, timeoutMs = 45000) {
     clearTimeout(timeoutId);
 
     if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      if (res.status === 404 && (errText.includes('inactive') || errText.includes('not found'))) {
+        throw new Error('SNS Workbench workflow is not deployed yet. Please click the "Deploy" button (or toggle Active) in the top-right corner of SNS Workbench.');
+      }
       throw new Error(`SNS Workbench responded with status ${res.status}: ${res.statusText}`);
     }
 

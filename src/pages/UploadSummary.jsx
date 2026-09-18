@@ -107,23 +107,16 @@ Warning Signs: Incision redness or swelling, high fever (>101°F), severe calf p
       setStepIndex(-1);
 
       const msg = err?.message || 'Processing failed';
-      const is503 = msg.includes('503') || msg.toLowerCase().includes('high demand') || msg.toLowerCase().includes('busy');
-      const isAuth = msg.includes('403') || msg.includes('leaked') || msg.toLowerCase().includes('permission');
+      const isWorkflowInactive = msg.includes('404') || msg.toLowerCase().includes('inactive') || msg.toLowerCase().includes('not found');
 
       setError({
-        is503,
-        title: is503
-          ? 'AI Model Temporarily Busy (HTTP 503)'
-          : (isAuth ? 'External AI Engine Unavailable' : 'Clinical AI Processing Issue'),
-        message: is503
-          ? 'The Google Gemini AI service is currently experiencing high worldwide demand spikes (HTTP 503). Spikes in demand are temporary. You can click Try Again, or extract patient data instantly using the Clinical Smart Parser.'
-          : (isAuth
-            ? 'The remote AI model endpoint is temporarily unreachable. You can retry or proceed immediately using the Clinical Smart Parser.'
-            : `${msg}. Please retry or extract directly using the Clinical Smart Parser.`),
-        canOffline: true,
+        title: isWorkflowInactive ? 'SNS Workbench Workflow Not Deployed' : 'Workflow Execution Issue',
+        message: isWorkflowInactive
+          ? 'Your SNS Workbench workflow is currently in draft mode. To allow the frontend to connect, please click the "Deploy" button (or toggle Active) in the top-right corner of SNS Workbench, then click Try Again.'
+          : `${msg}. Please verify your workflow in SNS Workbench and try again.`,
       });
 
-      showToast(is503 ? 'AI Model busy (HTTP 503). Spikes are temporary.' : 'Processing error: ' + msg, 'error');
+      showToast(isWorkflowInactive ? 'Please click Deploy in SNS Workbench' : 'Processing error: ' + msg, 'error');
     }
   };
 
@@ -179,16 +172,6 @@ Warning Signs: Incision redness or swelling, high fever (>101°F), severe calf p
                   <RefreshCw size={14} />
                   <span>Try Again</span>
                 </button>
-                {error.canOffline && (
-                  <button
-                    onClick={() => runProcessing(true)}
-                    className="btn btn-secondary"
-                    style={{ padding: '8px 16px', fontSize: '13px', borderColor: '#fda4af', color: '#9f1239', background: '#ffffff' }}
-                  >
-                    <Sparkles size={14} color="#e11d48" />
-                    <span>Continue with Clinical Smart Parser</span>
-                  </button>
-                )}
                 <button
                   onClick={() => setError(null)}
                   className="btn btn-secondary"
